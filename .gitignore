@@ -1,0 +1,9 @@
+node_modules/
+.env
+apps/admin/.next/
+apps/admin/node_modules/
+apps/admin/yarn.lock
+dist/
+.tiktok-automation/
+playwright-report/
+test-results/
