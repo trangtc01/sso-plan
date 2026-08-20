@@ -3,13 +3,14 @@ import { loadFacebookConfig, loadYoutubePlaywrightConfig } from "./config.js";
 import { validateVideoFile } from "./file.js";
 import { FacebookReelsPublisher } from "./facebook-publisher.js";
 import { YoutubePlaywrightPublisher } from "./youtube-playwright-publisher.js";
+import { bootstrapYoutubeProfile } from "./youtube-profile-bootstrap.js";
 import type { FacebookVideoState, SocialVideoInput, YoutubePrivacy } from "./types.js";
 
 const [command, ...args] = process.argv.slice(2);
 
 try {
   if (command === "youtube-bootstrap") {
-    await new YoutubePlaywrightPublisher(loadYoutubePlaywrightConfig()).bootstrap();
+    await bootstrapYoutubeProfile(loadYoutubePlaywrightConfig());
   } else if (command === "upload") {
     await runUpload(args);
   } else {
@@ -37,12 +38,7 @@ async function runUpload(args: string[]): Promise<void> {
     .map(value => value.trim().replace(/^#/, ""))
     .filter(Boolean);
 
-  const input: SocialVideoInput = {
-    filePath: file.path,
-    title,
-    description,
-    tags,
-  };
+  const input: SocialVideoInput = { filePath: file.path, title, description, tags };
 
   if (platform === "facebook" || platform === "all") {
     const config = loadFacebookConfig();
@@ -55,10 +51,24 @@ async function runUpload(args: string[]): Promise<void> {
   if (platform === "youtube" || platform === "all") {
     const config = loadYoutubePlaywrightConfig();
     const privacy = normalizeYoutubePrivacy(flags["youtube-privacy"] ?? config.defaultPrivacy);
-    const madeForKids = normalizeBoolean(flags["made-for-kids"] ?? String(config.defaultMadeForKids), "--made-for-kids");
-    process.stdout.write(`Uploading to YouTube via Playwright (${privacy})...\n`);
+    const madeForKids = normalizeBoolean(
+      flags["made-for-kids"] ?? String(config.defaultMadeForKids),
+      "--made-for-kids",
+    );
+
+    process.stdout.write([
+      "Uploading to YouTube via Playwright...",
+      `[YouTube] profileDir=${config.profileDir}`,
+      `[YouTube] profile=${config.chromeProfileDirectory ?? "Default"}`,
+      `[YouTube] executable=${config.chromeExecutablePath ?? "Playwright bundled Chromium"}`,
+      `[YouTube] privacy=${privacy}`,
+      "",
+    ].join("\n"));
+
     const result = await new YoutubePlaywrightPublisher(config).publish(input, { privacy, madeForKids });
-    process.stdout.write(`YouTube OK: video_id=${result.externalId}, state=${result.state}${result.url ? `, url=${result.url}` : ""}\n`);
+    process.stdout.write(
+      `YouTube OK: video_id=${result.externalId}, state=${result.state}${result.url ? `, url=${result.url}` : ""}\n`,
+    );
   }
 }
 
@@ -108,7 +118,13 @@ function normalizeBoolean(value: string, name: string): boolean {
 function printUsage(): void {
   process.stderr.write("Usage:\n");
   process.stderr.write("  npm run youtube:bootstrap\n");
-  process.stderr.write('  npm run social:upload -- --platform facebook --file /abs/video.mp4 --title "Title" --description "Caption" --facebook-state DRAFT\n');
-  process.stderr.write('  npm run social:upload -- --platform youtube --file /abs/video.mp4 --title "Title" --description "Description" --youtube-privacy public --made-for-kids false\n');
-  process.stderr.write('  npm run social:upload -- --platform all --file /abs/video.mp4 --title "Title" --description "Caption" --tags "tag1,tag2"\n');
+  process.stderr.write(
+    '  npm run upload:youtube -- --file /abs/video.mp4 --title "Title" --youtube-privacy private --made-for-kids false\n',
+  );
+  process.stderr.write(
+    '  npm run social:upload -- --platform facebook --file /abs/video.mp4 --title "Title" --description "Caption" --facebook-state DRAFT\n',
+  );
+  process.stderr.write(
+    '  npm run social:upload -- --platform youtube --file /abs/video.mp4 --title "Title" --description "Description" --youtube-privacy public --made-for-kids false\n',
+  );
 }

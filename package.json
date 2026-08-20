@@ -12,6 +12,7 @@
     "facebook:draft": "tsx src/facebook/cli.ts",
     "facebook:status": "tsx src/facebook/status-cli.ts",
     "youtube:bootstrap": "tsx src/social/cli.ts youtube-bootstrap",
+    "upload:youtube": "tsx src/social/cli.ts upload --platform youtube",
     "social:upload": "tsx src/social/cli.ts upload",
     "admin:dev": "next dev apps/admin",
     "api:dev": "tsx --tsconfig apps/api/tsconfig.json apps/api/src/main.ts",

@@ -61,7 +61,7 @@ export class VideosService {
     const video = await this.prisma.video.findUnique({
       where: { id },
       include: {
-        jobs: { orderBy: { createdAt: "desc" }, include: { attempts: { orderBy: { number: "desc" } } } },
+        jobs: { orderBy: { createdAt: "desc" }, include: { attempts: { orderBy: { number: "desc" } } },
         publishJobs: { orderBy: { createdAt: "desc" } },
       },
     });
