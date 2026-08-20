@@ -1,1 +1,15 @@
-:root { font-family: Inter, system-ui, sans-serif; color: #18202a; background: #f5f7fb; } main { max-width: 1100px; margin: 40px auto; } header, section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px #0001; } h1, h2 { margin-top: 0; } form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; } label { display: grid; gap: 6px; } textarea { min-height: 76px; } input, textarea, button { font: inherit; padding: 9px; } button { width: fit-content; background: #111827; color: white; border: 0; border-radius: 6px; cursor: pointer; } table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; } small { display: block; color: #64748b; margin-top: 5px; } .error { color: #b91c1c; white-space: pre-wrap; }
+:root { font-family: Inter, system-ui, sans-serif; color: #18202a; background: #f5f7fb; }
+main { max-width: 1180px; margin: 40px auto; }
+header, section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px #0001; }
+h1, h2 { margin-top: 0; }
+form { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; align-items: start; }
+label { display: grid; gap: 6px; }
+textarea { min-height: 76px; }
+input, textarea, select, button { font: inherit; padding: 9px; }
+select[multiple] { min-height: 105px; }
+button { width: fit-content; background: #111827; color: white; border: 0; border-radius: 6px; cursor: pointer; margin-right: 6px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+small { display: block; color: #64748b; margin-top: 5px; }
+.error { color: #b91c1c; white-space: pre-wrap; }
+@media (max-width: 760px) { main { margin: 12px; } form { grid-template-columns: 1fr; } table { font-size: 13px; } }

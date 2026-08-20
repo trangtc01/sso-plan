@@ -18,11 +18,13 @@ enum VideoStatus {
   LOGIN_REQUIRED
   AMBIGUOUS
 }
+
 enum Platform {
   FACEBOOK
   YOUTUBE
   TIKTOK
 }
+
 enum RenderStatus {
   QUEUED
   VOICE_GENERATING
@@ -31,6 +33,7 @@ enum RenderStatus {
   READY
   FAILED
 }
+
 enum PublishStatus {
   QUEUED
   SCHEDULED
@@ -41,81 +44,84 @@ enum PublishStatus {
 }
 
 model Video {
-  id          String      @id @default(uuid())
-  title       String
-  sourcePath  String
-  description String      @default("")
+  id           String       @id @default(uuid())
+  title        String
+  sourcePath   String
+  description  String       @default("")
   subtitlePath String?
-  outputPath String?
-  hashtags    String[]
-  status      VideoStatus @default(UPLOADED)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  jobs        UploadJob[]
-  renderJobs RenderJob[]
-  publishJobs PublishJob[]
+  outputPath   String?
+  hashtags     String[]
+  status       VideoStatus  @default(UPLOADED)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  jobs         UploadJob[]
+  renderJobs   RenderJob[]
+  publishJobs  PublishJob[]
 }
 
 model RenderJob {
-  id String @id @default(uuid())
-  videoId String
-  status RenderStatus @default(QUEUED)
-  voicePath String?
-  musicPath String?
+  id           String       @id @default(uuid())
+  videoId      String
+  status       RenderStatus @default(QUEUED)
+  voicePath    String?
+  musicPath    String?
   errorMessage String?
-  startedAt DateTime?
-  finishedAt DateTime?
-  createdAt DateTime @default(now())
-  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  video        Video        @relation(fields: [videoId], references: [id], onDelete: Cascade)
 }
 
 model PublishJob {
-  id String @id @default(uuid())
-  videoId String
-  platform Platform
-  publishTime DateTime?
-  status PublishStatus @default(QUEUED)
-  retryCount Int @default(0)
+  id           String        @id @default(uuid())
+  videoId      String
+  platform     Platform
+  publishTime  DateTime?
+  status       PublishStatus @default(QUEUED)
+  retryCount   Int           @default(0)
   errorMessage String?
-  response Json?
-  startedAt DateTime?
-  finishedAt DateTime?
-  createdAt DateTime @default(now())
-  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  response     Json?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  video        Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
   @@index([platform, status, publishTime])
 }
 
 model PlatformAccount {
-  id String @id @default(uuid())
-  platform Platform
-  displayName String
-  credential String
+  id           String   @id @default(uuid())
+  platform     Platform
+  displayName  String
+  credential   String
   refreshToken String?
-  expireTime DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expireTime   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@unique([platform, displayName])
 }
 
 model Music {
-  id String @id @default(uuid())
-  title String
+  id         String   @id @default(uuid())
+  title      String
   sourcePath String
   durationMs Int?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 }
 
 model UploadJob {
-  id          String      @id @default(uuid())
-  videoId     String
-  status      VideoStatus @default(QUEUED)
-  retryCount  Int         @default(0)
+  id           String      @id @default(uuid())
+  videoId      String
+  status       VideoStatus @default(QUEUED)
+  publishTime  DateTime?
+  retryCount   Int         @default(0)
   errorMessage String?
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime    @default(now())
-  video       Video       @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  attempts    UploadAttempt[]
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  video        Video       @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  attempts     UploadAttempt[]
 }
 
 model UploadAttempt {
@@ -129,5 +135,6 @@ model UploadAttempt {
   startedAt      DateTime    @default(now())
   finishedAt     DateTime?
   job            UploadJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
   @@unique([jobId, number])
 }
