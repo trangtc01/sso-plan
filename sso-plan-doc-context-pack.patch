@@ -1,0 +1,561 @@
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,33 @@
++# AGENTS.md
++
++## Mandatory startup for non-trivial tasks
++
++1. Run `git status --short`, `git branch --show-current`, and `git rev-parse HEAD`.
++2. Read `docs/INDEX.md`.
++3. Read `docs/context-pack/CURRENT_STATE.md`.
++4. Read only the domain documents/source paths routed by `docs/INDEX.md`.
++5. Inspect current source before changing behavior. Do not implement from historical plans alone.
++6. When documentation conflicts with verified runtime/source, runtime and current source win. Update the context pack after verification.
++7. Keep changes minimal and scoped. Do not overwrite unrelated local changes.
++8. Never use `git add .` or `git add -A` when a task has a narrow file scope.
++9. Do not commit credentials, browser profiles, cookies, access tokens, generated artifacts, or test media.
++
++## Verification order
++
++Use this authority order when resolving conflicts:
++
++1. Verified runtime/test result
++2. Current source code
++3. Database schema/migrations and active configuration contracts
++4. `docs/context-pack/CURRENT_STATE.md`
++5. Active architecture docs
++6. Historical plans/specs
++
++## Required finish for architecture-changing tasks
++
++After tests/runtime verification, update only the context files materially affected by the change, normally:
++- `docs/context-pack/CURRENT_STATE.md`
++- `docs/context-pack/CURRENT_PRIORITIES.md`
++- `docs/context-pack/PLATFORM_REGISTRY.md` when a platform integration changes
++
++Do not create duplicate reports unless explicitly requested.
+diff --git a/docs/INDEX.md b/docs/INDEX.md
+new file mode 100644
+--- /dev/null
++++ b/docs/INDEX.md
+@@ -0,0 +1,76 @@
++# Documentation Index
++
++This is the documentation entry point for humans and AI agents.
++
++## Read first
++
++- `../AGENTS.md` — agent operating rules
++- `context-pack/CURRENT_STATE.md` — what is actually implemented now
++- `context-pack/ARCHITECTURE_MAP.md` — runtime/data flow
++- `context-pack/DIRECTORY_MAP.md` — where code lives
++- `context-pack/PLATFORM_REGISTRY.md` — TikTok/Facebook/YouTube behavior
++- `context-pack/KNOWN_ISSUES.md` — known risks and unresolved items
++- `context-pack/CURRENT_PRIORITIES.md` — recommended next work
++- `DOCUMENT_AUDIT_REPORT.md` — document classification and audit notes
++
++## Task router
++
++### TikTok draft / TikTok automation
++Read:
++- `context-pack/PLATFORM_REGISTRY.md`
++- `context-pack/CURRENT_STATE.md`
++Then inspect:
++- `src/cli.ts`
++- `src/run-draft.ts`
++- `src/tiktok-adapter.ts`
++- `src/profile-lock.ts`
++- `apps/worker/src/main.ts`
++
++### Facebook upload/status/publish
++Read:
++- `context-pack/PLATFORM_REGISTRY.md`
++- `context-pack/KNOWN_ISSUES.md`
++Then inspect:
++- `src/facebook/*` for direct CLI/status tools
++- `src/social/facebook-publisher.ts` for scheduled worker publishing
++- `apps/worker/src/main.ts`
++- `apps/api/src/videos.service.ts`
++
++### YouTube
++Read:
++- `context-pack/PLATFORM_REGISTRY.md`
++Then inspect:
++- `src/social/youtube-playwright-publisher.ts`
++- `src/social/config.ts`
++- `src/social/cli.ts`
++- `apps/worker/src/main.ts`
++
++### CMS / API / scheduler
++Read:
++- `context-pack/ARCHITECTURE_MAP.md`
++- `context-pack/CURRENT_STATE.md`
++Then inspect:
++- `apps/admin/app/*`
++- `apps/api/src/videos.controller.ts`
++- `apps/api/src/videos.dto.ts`
++- `apps/api/src/videos.service.ts`
++- `apps/api/src/bulk-import.ts`
++- `apps/worker/src/main.ts`
++- `src/publish-queues.ts`
++- `prisma/schema.prisma`
++- `prisma/migrations/*`
++
++### Database changes
++Read:
++- `context-pack/ARCHITECTURE_MAP.md`
++Then inspect:
++- `prisma/schema.prisma`
++- all relevant `prisma/migrations/*`
++Do not assume schema and migration are synchronized without checking.
++
++## Historical/reference documents
++
++- `../README.md` — useful TikTok setup notes, but partially stale versus current multi-platform system.
++- `architecture.md` — architecture sketch; useful but some scheduler wording is stale.
++- `../tiktok-playwright-mvp-phase-1.md` — historical TikTok Phase 1 design.
++- `../video-automation-platform-plan-v2.md` — broad historical product plan; not current implementation truth.
+diff --git a/docs/DOCUMENT_AUDIT_REPORT.md b/docs/DOCUMENT_AUDIT_REPORT.md
+new file mode 100644
+--- /dev/null
++++ b/docs/DOCUMENT_AUDIT_REPORT.md
+@@ -0,0 +1,51 @@
++# Documentation Audit Report
++
++Audit baseline: commit `8b5857401fd652df1fb70e2c12d8cb8ac7525a26` (`add cms`), with history reviewed through:
++- `6293baa96981ec44494b165559b3ffa94d4bbca8` — TikTok draft work
++- `3d8aeb5b962f56969373bf13166884bf4fbfa6ef` — Facebook/YouTube integration work
++- `8b5857401fd652df1fb70e2c12d8cb8ac7525a26` — CMS, multi-platform scheduling and workers
++
++No source files were modified by this audit package.
++
++## Classification
++
++| Document | Status | Notes |
++|---|---|---|
++| `docs/INDEX.md` | ACTIVE | Canonical documentation router created by this audit. |
++| `docs/context-pack/*` | ACTIVE | Canonical compact project context. |
++| `docs/architecture.md` | NEEDS_REVIEW | Broad mapping is useful, but it describes a scheduler that dispatches due jobs while current implementation directly enqueues BullMQ jobs with delay. |
++| `README.md` | STALE | Still presents the project primarily as a TikTok Draft CMS and says there is no publish flow; current source contains Facebook/YouTube workers and multi-platform scheduling. |
++| `tiktok-playwright-mvp-phase-1.md` | ARCHIVE_CANDIDATE | Valuable historical rationale and safety behavior; Phase 1 scope is no longer current project scope. |
++| `video-automation-platform-plan-v2.md` | NEEDS_REVIEW | Useful product direction, but several planned components differ from current implementation. Do not use as implementation source of truth. |
++
++## Important code/document mismatches
++
++1. Current CMS supports platform selection and publish datetime.
++2. API creates delayed BullMQ jobs directly.
++3. Facebook and YouTube workers exist.
++4. TikTok remains a draft-generation flow rather than public publishing.
++5. README statement "Không có luồng publish" is no longer correct for Facebook/YouTube.
++6. `docs/architecture.md` says a scheduler dispatches due jobs; current code computes BullMQ delay at job creation/rerun time instead.
++
++## Repository hygiene findings
++
++The repository currently contains items that should be reviewed separately, not deleted automatically:
++- `.DS_Store` files
++- `.tmp_pptx_html/`
++- root test media such as `IMG_8492.MOV`
++- `source.html`
++
++These are `ARCHIVE_CANDIDATE` / cleanup candidates until the owner confirms whether they are intentionally versioned.
++
++## Critical security finding
++
++A Facebook Page access credential was committed in `.env.example` in the reviewed history.
++
++Required action:
++1. Revoke/rotate the exposed Facebook Page access token in Meta.
++2. Replace committed `.env.example` secret values with empty placeholders.
++3. Verify no active credential remains in current files.
++4. Consider history cleanup only as a separate, explicit operation. Do not rewrite Git history automatically.
++5. Review whether any other committed sample credentials are real.
++
++This report intentionally does not reproduce the credential value.
+diff --git a/docs/context-pack/PROJECT_OVERVIEW.md b/docs/context-pack/PROJECT_OVERVIEW.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/PROJECT_OVERVIEW.md
+@@ -0,0 +1,31 @@
++# Project Overview
++
++## Product
++
++Local/internal social video scheduler and publishing automation for one operator.
++
++Primary capabilities visible in the current source:
++- upload MP4/MOV through a Next.js admin
++- save video metadata in PostgreSQL through NestJS API
++- select one or multiple platforms
++- schedule execution with BullMQ delayed jobs
++- TikTok: use Playwright to create a draft
++- Facebook: publish through Meta Graph/Reels integration
++- YouTube: publish through Playwright/YouTube Studio
++- bulk import schedule rows from TXT
++- persist per-platform job status and retry state
++
++## Technology
++
++- TypeScript / Node.js
++- Next.js admin
++- NestJS API
++- PostgreSQL + Prisma
++- Redis + BullMQ
++- Playwright
++- Meta Graph API for Facebook
++- local file storage
++
++## Operational model
++
++This is not currently designed as a multi-tenant SaaS. Browser automation uses persistent profiles and requires careful session/profile handling.
+diff --git a/docs/context-pack/ARCHITECTURE_MAP.md b/docs/context-pack/ARCHITECTURE_MAP.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/ARCHITECTURE_MAP.md
+@@ -0,0 +1,62 @@
++# Architecture Map
++
++## Current scheduling flow
++
++```text
++Next.js Admin
++   |
++   | POST /videos
++   | title + description + hashtags + platforms + publishAt + file
++   v
++NestJS API
++   |
++   +--> persist Video
++   |
++   +--> TIKTOK selected
++   |      create UploadJob(publishTime)
++   |      enqueue publish-tiktok with BullMQ delay
++   |
++   +--> FACEBOOK selected
++   |      create PublishJob(SCHEDULED, publishTime)
++   |      enqueue publish-facebook with BullMQ delay
++   |
++   +--> YOUTUBE selected
++          create PublishJob(SCHEDULED, publishTime)
++          enqueue publish-youtube with BullMQ delay
++
++Redis / BullMQ
++   |
++   +--> TikTok worker
++   |      runDraft()
++   |      Playwright -> TikTok draft
++   |      UploadJob / UploadAttempt status
++   |
++   +--> Facebook worker
++   |      FacebookReelsPublisher
++   |      -> PublishJob PUBLISHING/PUBLISHED/FAILED
++   |
++   +--> YouTube worker
++          YoutubePlaywrightPublisher
++          -> PublishJob PUBLISHING/PUBLISHED/FAILED
++```
++
++## Important implementation detail
++
++There is no separate polling scheduler in the current implementation. The API calculates:
++
++`delay = max(0, publishTime - now)`
++
++and enqueues the BullMQ job immediately with that delay.
++
++This differs from older architecture text that describes a scheduler scanning due `SCHEDULED` jobs.
++
++## Data model
++
++Core:
++- `Video`
++- `UploadJob` + `UploadAttempt` for TikTok draft workflow
++- `PublishJob` for Facebook/YouTube public publishing
++- `RenderJob` exists but is not the dominant path in the reviewed recent commits
++- `PlatformAccount` and `Music` exist in schema
++
++TikTok and public publishing intentionally use different job/status models.
+diff --git a/docs/context-pack/DIRECTORY_MAP.md b/docs/context-pack/DIRECTORY_MAP.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/DIRECTORY_MAP.md
+@@ -0,0 +1,51 @@
++# Directory Map
++
++```text
++.
++├── apps/
++│   ├── admin/              Next.js CMS
++│   │   └── app/
++│   │       ├── upload-form.tsx
++│   │       ├── bulk-import-form.tsx
++│   │       ├── video-list.tsx
++│   │       └── page.tsx
++│   ├── api/                NestJS API
++│   │   └── src/
++│   │       ├── videos.controller.ts
++│   │       ├── videos.dto.ts
++│   │       ├── videos.service.ts
++│   │       ├── bulk-import.ts
++│   │       └── ...
++│   └── worker/
++│       └── src/main.ts     TikTok/Facebook/YouTube BullMQ workers
++│
++├── prisma/
++│   ├── schema.prisma
++│   └── migrations/
++│
++├── src/
++│   ├── cli.ts              TikTok direct CLI
++│   ├── run-draft.ts
++│   ├── tiktok-adapter.ts
++│   ├── profile-lock.ts
++│   ├── publish-queues.ts
++│   ├── facebook/           direct Facebook upload/status CLI implementation
++│   └── social/
++│       ├── facebook-publisher.ts
++│       ├── youtube-playwright-publisher.ts
++│       ├── config.ts
++│       ├── cli.ts
++│       └── ...
++│
++├── tests/
++├── docs/
++└── package.json
++```
++
++## Two Facebook code paths
++
++Do not confuse:
++- `src/facebook/*`: direct CLI tools (`facebook:upload`, `facebook:status`)
++- `src/social/facebook-publisher.ts`: publisher used by scheduled worker
++
++When changing Facebook behavior, inspect both and decide whether they must remain behaviorally aligned.
+diff --git a/docs/context-pack/PLATFORM_REGISTRY.md b/docs/context-pack/PLATFORM_REGISTRY.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/PLATFORM_REGISTRY.md
+@@ -0,0 +1,66 @@
++# Platform Registry
++
++## TikTok
++
++Mechanism:
++- Playwright
++- persistent Chrome profile
++- saves draft rather than publishing public content
++
++Key code:
++- `src/run-draft.ts`
++- `src/tiktok-adapter.ts`
++- `src/profile-lock.ts`
++- `apps/worker/src/main.ts`
++
++Queue:
++- `publish-tiktok`
++
++Important:
++- `AMBIGUOUS` must not be blindly retried after a possible Save Draft.
++- Manual login/MFA/CAPTCHA recovery is allowed; bypass is not.
++- Profile concurrency must remain controlled.
++
++## Facebook
++
++There are two implementations/entry points:
++
++1. Direct CLI: `src/facebook/*`
++   - supports `reel`, `video`, `both`
++   - supports draft/public behavior
++   - `facebook:status` queries status plus best-effort permalink/source/thumbnail
++
++2. Scheduled publisher: `src/social/facebook-publisher.ts`
++   - used by Facebook BullMQ worker
++   - current worker publishes public content
++
++Observed runtime behavior from manual testing:
++- Reel upload and `/videos` upload returned distinct object IDs.
++- Facebook returned `/reel/{id}` permalinks for both object types.
++- Therefore `--type both` performs two uploads and can create duplicate visible content.
++
++Do not assume `/videos` means a separately displayed classic Facebook Video in current Facebook UI.
++
++## YouTube
++
++Mechanism:
++- Playwright + persistent YouTube profile / YouTube Studio
++
++Key code:
++- `src/social/youtube-playwright-publisher.ts`
++- `src/social/config.ts`
++- `src/social/cli.ts`
++- `apps/worker/src/main.ts`
++
++Reason for this direction:
++- project avoids relying on API upload behavior that may restrict visibility for unaudited API projects.
++
++Current scheduled worker uses public visibility and `YOUTUBE_DEFAULT_MADE_FOR_KIDS`.
++
++## Queue names
++
++Source: `src/publish-queues.ts` / current service-worker integration.
++Expected platform queues:
++- `publish-tiktok`
++- `publish-facebook`
++- `publish-youtube`
+diff --git a/docs/context-pack/CURRENT_STATE.md b/docs/context-pack/CURRENT_STATE.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/CURRENT_STATE.md
+@@ -0,0 +1,50 @@
++# Current State
++
++Baseline reviewed: `8b5857401fd652df1fb70e2c12d8cb8ac7525a26`.
++
++## Implemented in current source
++
++### CMS
++- single video upload
++- title
++- description
++- hashtags
++- multi-select Facebook / YouTube / TikTok
++- datetime-local publish time
++- bulk TXT import
++- video/job list
++- rerun controls
++
++### API / scheduling
++- creates `Video`
++- TikTok uses `UploadJob` with `publishTime`
++- Facebook/YouTube use `PublishJob`
++- `publishTime` is persisted
++- BullMQ delayed jobs are created at request/import time
++- per-platform queues are used
++- failed publish jobs can be re-enqueued independently
++
++### Worker
++- TikTok worker creates draft with Playwright
++- Facebook worker publishes with `FacebookReelsPublisher`
++- YouTube worker publishes with `YoutubePlaywrightPublisher`
++- publish jobs transition through PUBLISHING/PUBLISHED/FAILED
++
++### Facebook direct CLI
++- `facebook:upload`
++- `facebook:draft` compatibility alias
++- `facebook:status`
++- reel / video / both
++- optional public mode
++- status returns processing information and best-effort preview metadata
++
++## Verified manually during recent work
++
++Facebook test objects became `ready` with upload/processing/publishing phases complete.
++Meta returned permalink paths under `/reel/{id}` for both a reel-endpoint object and a `/videos` object.
++
++## Not proven by this documentation audit
++
++This audit inspected repository source and commit history; it did not run the local database, Redis, browsers, or end-to-end CMS in the user's machine.
++
++An agent starting implementation must run the relevant local build/tests/runtime smoke tests before treating current flows as fully healthy.
+diff --git a/docs/context-pack/KNOWN_ISSUES.md b/docs/context-pack/KNOWN_ISSUES.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/KNOWN_ISSUES.md
+@@ -0,0 +1,57 @@
++# Known Issues
++
++## P0 — exposed Facebook credential
++
++A real-looking Facebook Page access token was committed in `.env.example` history.
++
++Action:
++- rotate/revoke immediately
++- replace current example with placeholder
++- audit other secrets
++- history rewrite only with explicit owner approval
++
++## P1 — duplicate Facebook implementations
++
++Facebook logic exists in:
++- `src/facebook/*`
++- `src/social/facebook-publisher.ts`
++
++Risk:
++- fixes/features may be applied to one path but not the other.
++
++Recommended:
++- define a shared Facebook publishing/status core or explicitly document intentional differences.
++
++## P1 — `--type both` duplicate risk
++
++The direct Facebook CLI uploads twice:
++- `/video_reels`
++- `/videos`
++
++Manual result showed both may render as Reels in Facebook.
++Do not retry `both` blindly after partial success.
++
++## P1 — documentation drift
++
++`README.md` is stale and still describes a TikTok-only/no-publish system.
++`docs/architecture.md` describes a separate due-job scheduler unlike the delayed BullMQ design currently implemented.
++
++## P2 — repository hygiene
++
++Review:
++- committed `.DS_Store`
++- `.tmp_pptx_html/`
++- `IMG_8492.MOV`
++- `source.html`
++
++Do not delete automatically.
++
++## P2 — verification coverage
++
++Existing tests visible in `tests/` focus largely on TikTok/input/job helpers.
++Multi-platform API/worker scheduling deserves targeted tests, especially:
++- delayed job creation
++- platform fan-out
++- independent retry
++- Facebook/YouTube worker status transitions
++- bulk import validation
+diff --git a/docs/context-pack/CURRENT_PRIORITIES.md b/docs/context-pack/CURRENT_PRIORITIES.md
+new file mode 100644
+--- /dev/null
++++ b/docs/context-pack/CURRENT_PRIORITIES.md
+@@ -0,0 +1,34 @@
++# Current Priorities
++
++Recommended order after this documentation bootstrap:
++
++1. **Security cleanup**
++   - rotate exposed Facebook Page token
++   - sanitize `.env.example`
++   - inspect repository for other committed secrets
++
++2. **Verify current multi-platform path end-to-end**
++   - build/typecheck
++   - tests
++   - PostgreSQL + Redis
++   - create one scheduled video per platform
++   - verify delayed execution and persisted statuses
++
++3. **Unify or clearly separate Facebook implementations**
++   - direct CLI versus scheduled publisher
++   - prevent behavior drift
++   - decide whether `video` / `both` remain supported given Facebook's Reel unification behavior
++
++4. **Improve automated tests for scheduler/publish**
++   - platform fan-out
++   - delay calculation
++   - retries
++   - worker state transitions
++   - bulk import
++
++5. **Refresh user-facing README**
++   - only after current runtime is verified
++   - describe the system as Social Video Scheduler, not TikTok-only MVP
++
++6. **Repository cleanup**
++   - decide whether large/test/generated artifacts belong in Git
