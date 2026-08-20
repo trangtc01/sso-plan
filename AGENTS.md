@@ -44,7 +44,7 @@ Use this authority order when resolving conflicts:
 5. When documentation conflicts with verified runtime/source, runtime and current source win. Update the context pack after verification.
 6. Keep changes minimal and scoped. Do not overwrite unrelated local changes.
 7. Never use `git add .` or `git add -A` when a task has a narrow file scope.
-8. Do not commit credentials, browser profiles, cookies, access tokens, generated artifacts, or test media.
+8. Do not commit credentials, browser profiles, cookies, access tokens, generated artifacts, test media, raw delivery `.zip` files, or temporary extracted patch folders (e.g., `*.zip`, `sso-plan-*-patch/`).
 9. When delivering code updates externally or ingesting packages, follow the **Code Delivery & Packaging Protocol (Zip & File Mapping)** below.
 
 ## Code Delivery & Packaging Protocol (Zip & File Mapping)
@@ -76,6 +76,7 @@ Khi Agent lên plan và viết code/feature mới cho dự án để giao nhận
    - Giải nén file `.zip` vào thư mục tạm/scratch.
    - Đọc và parse `FILE_MAPPING.md` để đối chiếu với trạng thái repository hiện tại (`git status`).
    - Copy / apply từng file theo đúng sơ đồ `Target Path` và `Action`.
+   - **Loại trừ Git**: Tuyệt đối KHÔNG commit các file `.zip` giao nhận hoặc thư mục tạm/unzip (`*.zip`, `sso-plan-*-patch/`) vào repository. Chỉ stage đúng các target source file và canonical docs bị ảnh hưởng.
    - Chạy build/tests (`npm run build`, test suites) để đảm bảo không đứt gãy.
    - Review và update canonical docs trong `docs/context-pack/` theo Closed-Loop Workflow trước khi đánh giá task `DONE`.
 
