@@ -1,7 +1,11 @@
 import "dotenv/config";
-import { Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
+import path from "node:path";
+import { mkdir } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import {
   FacebookContentType,
+  Platform,
   Prisma,
   PrismaClient,
   PublishMode,
@@ -19,6 +23,8 @@ import { loadFacebookConfig, loadYoutubePlaywrightConfig } from "../../../src/so
 const prisma = new PrismaClient();
 const connection = { url: process.env.REDIS_URL ?? "redis://localhost:6379" };
 const tiktokConfig = loadConfig();
+const facebookQueue = new Queue(PUBLISH_QUEUES.facebook, { connection });
+const youtubeQueue = new Queue(PUBLISH_QUEUES.youtube, { connection });
 
 const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async queueJob => {
   const job = await prisma.uploadJob.findUnique({
@@ -40,9 +46,20 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
     .filter(Boolean)
     .join(" ");
 
+  let publishedUrl: string | undefined;
   const code = await runDraft({
     filePath: job.video.outputPath ?? job.video.sourcePath,
     caption,
+    publishMode: job.publishMode,
+    onPublishedUrl: async url => {
+      publishedUrl = url;
+      if (url) {
+        await prisma.video.update({
+          where: { id: job.videoId },
+          data: { tiktokPublishedUrl: url },
+        });
+      }
+    },
     onState: async (state, error) => updateTikTokStatus(
       job.id,
       job.videoId,
@@ -53,6 +70,71 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
   }, tiktokConfig);
 
   if (code !== 0) return;
+
+  if (job.publishMode !== PublishMode.PUBLIC) return;
+
+  const downstreamJobs = await prisma.publishJob.findMany({
+    where: {
+      videoId: job.videoId,
+      status: PublishStatus.WAITING_SOURCE,
+      platform: { in: [Platform.FACEBOOK, Platform.YOUTUBE] },
+    },
+  });
+
+  if (!downstreamJobs.length) return;
+
+  const latestVideo = await prisma.video.findUnique({ where: { id: job.videoId } });
+  const finalPublishedUrl = publishedUrl ?? latestVideo?.tiktokPublishedUrl ?? undefined;
+
+  if (!finalPublishedUrl) {
+    const errorMessage =
+      "TikTok was published but its public video URL could not be resolved; Facebook/YouTube were not released.";
+    await prisma.uploadJob.update({
+      where: { id: job.id },
+      data: { errorMessage },
+    });
+    await failWaitingDownstream(job.videoId, errorMessage);
+    return;
+  }
+
+  try {
+    const downloadedPath = latestVideo?.tiktokDownloadedPath
+      ?? await downloadTikTokVideo(job.videoId, finalPublishedUrl);
+
+    await prisma.video.update({
+      where: { id: job.videoId },
+      data: {
+        tiktokPublishedUrl: finalPublishedUrl,
+        tiktokDownloadedPath: downloadedPath,
+        outputPath: downloadedPath,
+      },
+    });
+
+    for (const downstream of downstreamJobs) {
+      const updated = await prisma.publishJob.update({
+        where: { id: downstream.id },
+        data: {
+          status: PublishStatus.SCHEDULED,
+          errorMessage: null,
+        },
+      });
+
+      const queue = updated.platform === Platform.FACEBOOK ? facebookQueue : youtubeQueue;
+      await queue.add("publish", { publishJobId: updated.id }, {
+        jobId: `${updated.id}:after-tiktok`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+      });
+    }
+  } catch (error) {
+    const errorMessage =
+      `TikTok published successfully but downstream source download failed: ${error instanceof Error ? error.message : String(error)}`;
+    await prisma.uploadJob.update({
+      where: { id: job.id },
+      data: { errorMessage },
+    });
+    await failWaitingDownstream(job.videoId, errorMessage);
+  }
 }, { connection, concurrency: 1 });
 
 const facebookWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.facebook, async queueJob => {
@@ -129,6 +211,56 @@ async function loadPublishJob(id: string) {
   return prisma.publishJob.findUnique({ where: { id }, include: { video: true } });
 }
 
+async function failWaitingDownstream(videoId: string, errorMessage: string) {
+  await prisma.publishJob.updateMany({
+    where: {
+      videoId,
+      status: PublishStatus.WAITING_SOURCE,
+      platform: { in: [Platform.FACEBOOK, Platform.YOUTUBE] },
+    },
+    data: {
+      status: PublishStatus.FAILED,
+      finishedAt: new Date(),
+      errorMessage,
+    },
+  });
+}
+
+async function downloadTikTokVideo(videoId: string, url: string): Promise<string> {
+  const downloadDir = path.resolve(
+    process.env.TIKTOK_DOWNLOAD_DIR ?? ".social-automation/tiktok-downloads",
+  );
+  await mkdir(downloadDir, { recursive: true });
+
+  const outputPath = path.join(downloadDir, `${videoId}.mp4`);
+  const executable = process.env.YT_DLP_EXECUTABLE ?? "yt-dlp";
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(executable, [
+      "--no-playlist",
+      "--force-overwrites",
+      "-f", "bv*+ba/b",
+      "--merge-output-format", "mp4",
+      "-o", outputPath,
+      url,
+    ], {
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+
+    child.once("error", error => {
+      reject(new Error(
+        `Could not start ${executable}. Install yt-dlp or set YT_DLP_EXECUTABLE. ${error.message}`,
+      ));
+    });
+    child.once("exit", code => {
+      if (code === 0) resolve();
+      else reject(new Error(`${executable} exited with code ${code ?? "unknown"}`));
+    });
+  });
+
+  return outputPath;
+}
+
 async function markPublishing(jobId: string) {
   await prisma.publishJob.update({
     where: { id: jobId },
@@ -167,6 +299,7 @@ async function updateTikTokStatus(
 ) {
   const completed = ([
     VideoStatus.DRAFT_SAVED,
+    VideoStatus.PUBLISHED,
     VideoStatus.FAILED,
     VideoStatus.LOGIN_REQUIRED,
     VideoStatus.AMBIGUOUS,
@@ -196,6 +329,8 @@ async function updateTikTokStatus(
 
 function toDatabaseStatus(state: RunState): VideoStatus {
   if (state === "DRAFT_SAVED") return VideoStatus.DRAFT_SAVED;
+  if (state === "PUBLISHING") return VideoStatus.PUBLISHING;
+  if (state === "PUBLISHED") return VideoStatus.PUBLISHED;
   if (state === "LOGIN_REQUIRED") return VideoStatus.LOGIN_REQUIRED;
   if (state === "AMBIGUOUS") return VideoStatus.AMBIGUOUS;
   if (state === "SAVING_DRAFT") return VideoStatus.SAVING_DRAFT;

@@ -11,6 +11,9 @@ export interface TikTokDraftAdapter {
   setCaption(caption: string): Promise<void>;
   saveDraft(): Promise<void>;
   verifyDraft(): Promise<boolean>;
+  publish(): Promise<void>;
+  verifyPublished(): Promise<boolean>;
+  getPublishedUrl?(): Promise<string | undefined>;
   navigateToDraftsList?(): Promise<void>;
   screenshot(name: string): Promise<void>;
   close(): Promise<void>;
@@ -64,12 +67,19 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
 
     await this.dismissPopups().catch(() => undefined);
 
-    const saveDraft = page.getByRole("button", { name: /save\s*draft|draft|lưu\s*nháp|bản\s*nháp/i }).first();
+    const readyAction = page.getByRole("button", {
+      name: /save\s*draft|draft|lưu\s*nháp|bản\s*nháp|^post$|^publish$|^đăng$|đăng\s*ngay/i,
+    }).first();
     try {
-      await saveDraft.waitFor({ state: "visible", timeout: 120_000 });
-      await page.waitForFunction(button => !(button as HTMLButtonElement).disabled, await saveDraft.elementHandle(), { timeout: 120_000 });
+      await readyAction.waitFor({ state: "visible", timeout: 120_000 });
+      const handle = await readyAction.elementHandle();
+      await page.waitForFunction(
+        button => !!button && !(button as HTMLButtonElement).disabled && button.getAttribute("aria-disabled") !== "true",
+        handle,
+        { timeout: 120_000 },
+      );
     } catch (error) {
-      throw new UploadError(`upload did not reach a ready-to-save state: ${messageOf(error)}`);
+      throw new UploadError(`upload did not reach a ready-to-submit state: ${messageOf(error)}`);
     }
 
     await this.dismissPopups().catch(() => undefined);
@@ -287,6 +297,97 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
     if (await confirmation.isVisible({ timeout: 2_000 }).catch(() => false)) return true;
 
     return false;
+  }
+
+  async publish(): Promise<void> {
+    const page = this.requirePage();
+    await this.dismissPopups().catch(() => undefined);
+
+    const candidates = [
+      page.getByRole("button", { name: /^post$|^publish$|^đăng$|^đăng ngay$/i }).first(),
+      page.locator('button[data-e2e*="post" i], button[data-e2e*="publish" i]').first(),
+      page.locator("button").filter({ hasText: /^Post$|^Publish$|^Đăng$|^Đăng ngay$/i }).first(),
+    ];
+
+    let clicked = false;
+    for (const button of candidates) {
+      if (!await button.isVisible({ timeout: 2_500 }).catch(() => false)) continue;
+      await button.scrollIntoViewIfNeeded().catch(() => undefined);
+      if (!await button.isEnabled().catch(() => false)) continue;
+      console.log("[TikTok Adapter] Clicking Post/Publish...");
+      await button.click({ timeout: 15_000 });
+      clicked = true;
+      break;
+    }
+
+    if (!clicked) {
+      throw new UploadError("TikTok Post/Publish button was not found or enabled");
+    }
+
+    const confirmations = [
+      page.getByRole("button", { name: /post anyway|publish anyway|continue posting|continue|đăng dù sao|vẫn đăng|tiếp tục/i }).first(),
+      page.locator("button").filter({ hasText: /post anyway|publish anyway|continue|vẫn đăng|tiếp tục/i }).first(),
+    ];
+
+    for (const confirm of confirmations) {
+      if (await confirm.isVisible({ timeout: 4_000 }).catch(() => false)) {
+        console.log("[TikTok Adapter] Publish confirmation modal detected; confirming...");
+        await confirm.click({ timeout: 10_000 });
+        break;
+      }
+    }
+  }
+
+  async verifyPublished(): Promise<boolean> {
+    const page = this.requirePage();
+    const confirmation = page.getByText(
+      /video\s+(has been\s+)?posted|post(ed)?\s+successfully|published\s+successfully|đã\s+đăng|đăng\s+thành\s+công/i,
+    ).first();
+
+    if (await confirmation.isVisible({ timeout: 20_000 }).catch(() => false)) return true;
+
+    await page.waitForTimeout(2_000);
+    if (/tiktokstudio\/(content|posts|manage)|creator-center\/content/i.test(page.url())) {
+      const submitStillVisible = await page.getByRole("button", {
+        name: /^post$|^publish$|^đăng$|^đăng ngay$/i,
+      }).first().isVisible().catch(() => false);
+      if (!submitStillVisible) return true;
+    }
+
+    return await confirmation.isVisible({ timeout: 5_000 }).catch(() => false);
+  }
+
+  async getPublishedUrl(): Promise<string | undefined> {
+    const page = this.requirePage();
+
+    const current = page.url();
+    if (/tiktok\.com\/@[^/]+\/video\/\d+/i.test(current)) return current;
+
+    const direct = page.locator('a[href*="/video/"]').first();
+    const href = await direct.getAttribute("href").catch(() => null);
+    if (href) {
+      try {
+        return new URL(href, page.url()).toString();
+      } catch {
+        // Continue with content-list fallback.
+      }
+    }
+
+    const contentUrl = "https://www.tiktok.com/tiktokstudio/content";
+    if (!page.url().includes("/content")) {
+      await page.goto(contentUrl, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_500);
+    }
+
+    const contentLink = page.locator('a[href*="/video/"]').first();
+    const contentHref = await contentLink.getAttribute("href").catch(() => null);
+    if (!contentHref) return undefined;
+
+    try {
+      return new URL(contentHref, page.url()).toString();
+    } catch {
+      return undefined;
+    }
   }
 
   async navigateToDraftsList(): Promise<void> {

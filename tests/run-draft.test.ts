@@ -19,7 +19,10 @@ class SuccessfulAdapter implements TikTokDraftAdapter {
   readonly calls: string[] = [];
   async open() { this.calls.push("open"); } async ensureAuthenticated() { this.calls.push("auth"); }
   async upload() { this.calls.push("upload"); } async setCaption() { this.calls.push("caption"); } async saveDraft() { this.calls.push("save"); }
-  async verifyDraft() { this.calls.push("verify"); return true; } async screenshot(name: string) { this.calls.push(`screen:${name}`); }
+  async verifyDraft() { this.calls.push("verify"); return true; }
+  async publish() { this.calls.push("publish"); }
+  async verifyPublished() { this.calls.push("verify-publish"); return true; }
+  async screenshot(name: string) { this.calls.push(`screen:${name}`); }
   async close() { this.calls.push("close"); }
 }
 test("runDraft completes orchestration and journals DRAFT_SAVED", async () => {
@@ -39,4 +42,13 @@ test("runDraft returns LOGIN_REQUIRED without attempting upload", async () => {
   const log = await readFile(path.join(config.artifactDir, runId!, "run.jsonl"), "utf8");
   assert.doesNotMatch(log, /secret/);
   assert.match(log, /token=\[REDACTED\]/);
+});
+
+test("runDraft handles publishMode PUBLIC and journals PUBLISHED", async () => {
+  const { config, file } = await setup(); const adapter = new SuccessfulAdapter();
+  assert.equal(await runDraft({ filePath: file, publishMode: "PUBLIC" }, config, () => adapter), EXIT_CODE.SUCCESS);
+  assert.deepEqual(adapter.calls, ["open", "auth", "upload", "caption", "screen:before-publish", "publish", "verify-publish", "screen:verified-published", "close"]);
+  const [runId] = await (await import("node:fs/promises")).readdir(config.artifactDir);
+  const journal = JSON.parse(await readFile(path.join(config.artifactDir, runId!, "journal.json"), "utf8"));
+  assert.equal(journal.state, "PUBLISHED");
 });

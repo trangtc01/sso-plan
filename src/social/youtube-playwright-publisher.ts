@@ -145,12 +145,44 @@ export class YoutubePlaywrightPublisher {
         `YouTube Playwright upload failed: ${messageOf(error)}. Diagnostics: ${runDir}`,
       );
     } finally {
-      await chrome?.browser.close().catch(() => undefined);
-      if (chrome?.process && !chrome.process.killed) {
-        chrome.process.kill("SIGTERM");
+      if (chrome) {
+        await this.shutdownChrome(chrome);
       }
       this.log(`=== END YOUTUBE UPLOAD PROCESS ===`);
     }
+  }
+
+  private async shutdownChrome(chrome: LaunchedChrome): Promise<void> {
+    this.log(`[Cleanup] Closing Playwright CDP connection...`);
+    await chrome.browser.close().catch(error => {
+      this.log(`[Cleanup] browser.close warning: ${messageOf(error)}`);
+    });
+
+    if (chrome.process.exitCode !== null) {
+      this.log(`[Cleanup] Chrome already exited with code ${chrome.process.exitCode}`);
+      return;
+    }
+
+    this.log(`[Cleanup] Sending SIGTERM to Chrome PID ${chrome.process.pid ?? "unknown"}...`);
+    chrome.process.kill("SIGTERM");
+
+    const exited = await Promise.race([
+      new Promise<boolean>(resolve => chrome.process.once("exit", () => resolve(true))),
+      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 3_000)),
+    ]);
+
+    if (exited || chrome.process.exitCode !== null) {
+      this.log(`[Cleanup] Chrome exited after SIGTERM`);
+      return;
+    }
+
+    this.log(`[Cleanup] Chrome did not exit after 3s; sending SIGKILL...`);
+    chrome.process.kill("SIGKILL");
+
+    await Promise.race([
+      new Promise<void>(resolve => chrome.process.once("exit", () => resolve())),
+      new Promise<void>(resolve => setTimeout(resolve, 1_500)),
+    ]);
   }
 
   private async launchViaCdp(): Promise<LaunchedChrome> {

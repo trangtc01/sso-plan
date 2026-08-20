@@ -11,6 +11,8 @@ export type AdapterFactory = (config: AppConfig, screenshotDir: string) => TikTo
 export interface RunDraftOptions {
   filePath: string | undefined;
   caption?: string;
+  publishMode?: "DRAFT" | "PUBLIC";
+  onPublishedUrl?: (url: string | undefined) => Promise<void>;
   onState?: (state: RunState, error?: string) => Promise<void>;
   onStep?: (stepName: string) => Promise<void>;
 }
@@ -52,6 +54,32 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
 
     await adapter.setCaption(options.caption ?? "");
     await diagnostics.transition("READY_TO_SAVE");
+    const publishMode = options.publishMode ?? "DRAFT";
+
+    if (publishMode === "PUBLIC") {
+      await adapter.screenshot("before-publish");
+      await options.onStep?.("Điền caption thành công, nút Post/Publish đã sẵn sàng");
+
+      await diagnostics.transition("PUBLISHING");
+      await report(options, "PUBLISHING");
+      saveClicked = true;
+      await adapter.publish();
+
+      await diagnostics.transition("VERIFYING");
+      await report(options, "VERIFYING");
+      if (!await adapter.verifyPublished()) {
+        throw new AmbiguousSaveError("Post/Publish was clicked but no confirmed published evidence was found");
+      }
+
+      const publishedUrl = await adapter.getPublishedUrl?.().catch(() => undefined);
+      await options.onPublishedUrl?.(publishedUrl);
+      await adapter.screenshot("verified-published");
+      await diagnostics.finish("PUBLISHED");
+      await report(options, "PUBLISHED");
+      await options.onStep?.("TikTok đã xác nhận đăng Public thành công");
+      return EXIT_CODE.SUCCESS;
+    }
+
     await adapter.screenshot("before-save-draft");
     await options.onStep?.("Điền caption thành công, nút Save Draft đã sẵn sàng");
 
@@ -66,7 +94,7 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
     await diagnostics.finish("DRAFT_SAVED");
     await report(options, "DRAFT_SAVED");
     await adapter.navigateToDraftsList?.().catch(() => undefined);
-    await options.onStep?.("Đã lưu nháp và chuyển đến trang danh sách Draft. Bấm ENTER để kết thúc và đóng trình duyệt");
+    await options.onStep?.("Đã lưu nháp và chuyển đến trang danh sách Draft");
     return EXIT_CODE.SUCCESS;
   } catch (error) {
     const message = messageOf(error);

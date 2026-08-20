@@ -31,6 +31,7 @@ interface CreateInput {
   facebookPublishMode?: PublishMode;
   facebookContentType?: FacebookContentType;
   youtubePublishMode?: PublishMode;
+  tiktokPublishMode?: PublishMode;
 }
 
 @Injectable()
@@ -61,7 +62,7 @@ export class VideosService {
     const video = await this.prisma.video.findUnique({
       where: { id },
       include: {
-        jobs: { orderBy: { createdAt: "desc" }, include: { attempts: { orderBy: { number: "desc" } } },
+        jobs: { orderBy: { createdAt: "desc" }, include: { attempts: { orderBy: { number: "desc" } } } },
         publishJobs: { orderBy: { createdAt: "desc" } },
       },
     });
@@ -72,6 +73,19 @@ export class VideosService {
   async create(input: CreateInput) {
     const platforms = normalizePlatforms(input.platforms);
     const publishTime = normalizePublishTime(input.publishAt);
+    const hasTikTok = platforms.includes(Platform.TIKTOK);
+    const hasDownstream = platforms.some(platform => platform !== Platform.TIKTOK);
+
+    if (
+      hasTikTok &&
+      hasDownstream &&
+      (input.tiktokPublishMode ?? PublishMode.DRAFT) !== PublishMode.PUBLIC
+    ) {
+      throw new BadRequestException(
+        "When TikTok is selected together with Facebook/YouTube, TikTok publish mode must be PUBLIC because downstream platforms use the video downloaded after TikTok publishes.",
+      );
+    }
+
     if (platforms.includes(Platform.YOUTUBE) && input.title.length > 100) {
       throw new BadRequestException("YouTube title must be <= 100 characters");
     }
@@ -89,7 +103,12 @@ export class VideosService {
 
       const tiktokJob = platforms.includes(Platform.TIKTOK)
         ? await tx.uploadJob.create({
-            data: { videoId: video.id, status: VideoStatus.QUEUED, publishTime },
+            data: {
+              videoId: video.id,
+              status: VideoStatus.QUEUED,
+              publishMode: input.tiktokPublishMode ?? PublishMode.DRAFT,
+              publishTime,
+            },
           })
         : null;
 
@@ -108,7 +127,7 @@ export class VideosService {
               ? input.facebookContentType ?? FacebookContentType.REEL
               : null,
             publishTime,
-            status: PublishStatus.SCHEDULED,
+            status: hasTikTok ? PublishStatus.WAITING_SOURCE : PublishStatus.SCHEDULED,
           },
         }));
       }
@@ -118,7 +137,7 @@ export class VideosService {
 
     const delay = delayUntil(publishTime);
     if (result.tiktokJob) {
-      await tiktokQueue.add("upload-draft", { jobId: result.tiktokJob.id }, {
+      await tiktokQueue.add("tiktok-publish", { jobId: result.tiktokJob.id }, {
         jobId: result.tiktokJob.id,
         delay,
         removeOnComplete: 100,
@@ -126,13 +145,15 @@ export class VideosService {
       });
     }
 
-    for (const job of result.publishJobs) {
-      await publishQueue(job.platform).add("publish", { publishJobId: job.id }, {
-        jobId: job.id,
-        delay,
-        removeOnComplete: 100,
-        removeOnFail: 100,
-      });
+    if (!result.tiktokJob) {
+      for (const job of result.publishJobs) {
+        await publishQueue(job.platform).add("publish", { publishJobId: job.id }, {
+          jobId: job.id,
+          delay,
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        });
+      }
     }
 
     return result;
@@ -198,7 +219,7 @@ export class VideosService {
       },
     });
     await this.prisma.video.update({ where: { id: job.videoId }, data: { status: VideoStatus.QUEUED } });
-    await tiktokQueue.add("upload-draft", { jobId }, {
+    await tiktokQueue.add("tiktok-publish", { jobId }, {
       jobId: `${jobId}:retry:${updated.retryCount}`,
       delay: delayUntil(job.publishTime ?? new Date()),
       removeOnComplete: 100,

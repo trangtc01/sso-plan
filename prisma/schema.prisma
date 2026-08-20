@@ -11,6 +11,8 @@ enum VideoStatus {
   UPLOADED
   QUEUED
   UPLOADING
+  PUBLISHING
+  PUBLISHED
   SAVING_DRAFT
   VERIFYING
   DRAFT_SAVED
@@ -47,6 +49,7 @@ enum RenderStatus {
 enum PublishStatus {
   QUEUED
   SCHEDULED
+  WAITING_SOURCE
   PUBLISHING
   PUBLISHED
   FAILED
@@ -60,6 +63,8 @@ model Video {
   description  String       @default("")
   subtitlePath String?
   outputPath   String?
+  tiktokPublishedUrl String?
+  tiktokDownloadedPath String?
   hashtags     String[]
   status       VideoStatus  @default(UPLOADED)
   createdAt    DateTime     @default(now())
@@ -126,6 +131,7 @@ model UploadJob {
   id           String      @id @default(uuid())
   videoId      String
   status       VideoStatus @default(QUEUED)
+  publishMode  PublishMode @default(DRAFT)
   publishTime  DateTime?
   retryCount   Int         @default(0)
   errorMessage String?

@@ -5,7 +5,8 @@
 Mechanism:
 - Playwright
 - persistent Chrome profile
-- saves draft rather than publishing public content
+- supports both `DRAFT` (Save Draft) and `PUBLIC` (Post/Publish) via `UploadJob.publishMode`
+- resolves `tiktokPublishedUrl` via `adapter.getPublishedUrl()` upon successful public post
 
 Key code:
 - `src/run-draft.ts`
@@ -14,10 +15,19 @@ Key code:
 - `apps/worker/src/main.ts`
 
 Queue:
-- `publish-tiktok`
+- `publish-tiktok` (job name `tiktok-publish`)
 
 Important:
-- `AMBIGUOUS` must not be blindly retried after a possible Save Draft.
+- Default `publishMode` remains `DRAFT` to avoid accidental public posting.
+- `PUBLIC` mode clicks Post/Publish and verifies `PUBLISHED` status.
+- **TikTok-First Multiplatform Flow**: When TikTok is selected together with Facebook/YouTube:
+  - TikTok publish mode MUST be `PUBLIC`.
+  - Downstream Facebook/YouTube jobs start in `WAITING_SOURCE` state.
+  - After TikTok publishes successfully, the worker downloads the public TikTok video using `yt-dlp` to `Video.tiktokDownloadedPath`.
+  - `Video.outputPath` is set to the downloaded TikTok video path.
+  - Downstream Facebook/YouTube jobs are released (`WAITING_SOURCE` -> `SCHEDULED`) and enqueued.
+  - If TikTok URL resolution or download fails, downstream jobs become `FAILED` (no silent fallback).
+- `AMBIGUOUS` must not be blindly retried after a possible Save Draft or Post/Publish.
 - Manual login/MFA/CAPTCHA recovery is allowed; bypass is not.
 - Profile concurrency must remain controlled.
 

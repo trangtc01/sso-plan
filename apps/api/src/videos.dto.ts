@@ -39,6 +39,10 @@ export class CreateVideoDto {
   @IsOptional()
   @IsEnum(PublishMode)
   youtubePublishMode: PublishMode = PublishMode.PUBLIC;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  tiktokPublishMode: PublishMode = PublishMode.DRAFT;
 }
 
 export class RerunDto {

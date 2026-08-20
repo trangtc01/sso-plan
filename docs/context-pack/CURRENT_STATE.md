@@ -13,29 +13,28 @@ Baseline reviewed: `8b5857401fd652df1fb70e2c12d8cb8ac7525a26`.
 - per-platform scheduling options:
   - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`)
   - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private)
-  - TikTok: Draft-only note
+  - TikTok: Publish mode (`DRAFT` default / `PUBLIC` option)
+- validation: When TikTok is selected together with Facebook/YouTube, TikTok publish mode must be `PUBLIC`
 - datetime-local publish time
-- bulk TXT import (uses default PUBLIC modes)
-- video/job list
-- rerun controls
+- bulk TXT import
+- video/job list & rerun controls
 
 ### API / scheduling
-- creates `Video`
-- TikTok uses `UploadJob` with `publishTime`
-- Facebook/YouTube use `PublishJob` with persisted `publishMode` (`PUBLIC`/`DRAFT`) and `facebookContentType` (`REEL`/`VIDEO_POST`)
-- `publishTime` is persisted
-- BullMQ delayed jobs are created at request/import time
-- per-platform queues are used
-- failed publish jobs can be re-enqueued independently
+- creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
+- TikTok uses `UploadJob` with `publishTime` and `publishMode` (`DRAFT`/`PUBLIC`)
+- Facebook/YouTube use `PublishJob` with `status: WAITING_SOURCE` when TikTok is included (or `SCHEDULED` if TikTok is not selected)
+- when TikTok is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
 
 ### Worker
-- TikTok worker creates draft with Playwright
-- Facebook worker publishes using stored `publishMode` (`DRAFT`/`PUBLISHED`) and `facebookContentType` (`REEL` via `/video_reels`, `VIDEO_POST` via `/videos`)
-### YouTube direct CLI / Worker
-- `youtube:bootstrap` spawns real Google Chrome for initial manual Google login with dedicated profile directory
-- `upload:youtube` / worker uses `YoutubePlaywrightPublisher` with Real Chrome + CDP mode (`--remote-debugging-port=9222` + `chromium.connectOverCDP()`), preventing Playwright `--enable-automation` flags from invalidating Google auth sessions
-- 12-stage timestamped debug logging across execution lifecycle (`[Step 1/12]` to `[Step 12/12]`) with diagnostic artifacts (`failure.png` & `failure-body.txt`)
-- supports `PUBLIC` and `DRAFT` (mapped to YouTube `private`)
+- TikTok worker handles `DRAFT` and `PUBLIC`
+- On `PUBLIC` completion with downstream platforms waiting:
+  1. Resolves published TikTok URL (`tiktokPublishedUrl`)
+  2. Downloads TikTok video via `yt-dlp` (`tiktokDownloadedPath`)
+  3. Updates `Video.outputPath` to downloaded TikTok file
+  4. Releases downstream Facebook/YouTube jobs from `WAITING_SOURCE` -> `SCHEDULED` and enqueues to BullMQ
+  5. If URL resolution or download fails, downstream jobs become `FAILED` (no silent fallback to original file)
+- Facebook worker publishes using `video.outputPath ?? video.sourcePath`
+- YouTube worker uses CDP mode with process cleanup (`SIGTERM` -> 3s -> `SIGKILL`) using `video.outputPath ?? video.sourcePath`
 
 ### Security & Credentials
 - `.env.example` in repository has been sanitized with `FB_PAGE_ACCESS_TOKEN=""` and `FB_PAGE_ID=""`

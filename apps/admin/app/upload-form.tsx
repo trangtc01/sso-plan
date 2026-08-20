@@ -99,7 +99,17 @@ export function UploadForm() {
         )}
 
         {platforms.includes("TIKTOK") && (
-          <small>TikTok hiện chỉ hỗ trợ Draft. Đến giờ hệ thống sẽ upload và lưu nháp để bạn kiểm tra/thêm nhạc trước khi Post.</small>
+          <fieldset>
+            <legend>TikTok</legend>
+            <label>
+              Chế độ đăng
+              <select name="tiktokPublishMode" defaultValue="DRAFT">
+                <option value="DRAFT">Draft</option>
+                <option value="PUBLIC">Public</option>
+              </select>
+            </label>
+            <small>Draft là mặc định để tránh vô tình đăng công khai. Public sẽ tự bấm Post sau khi upload hoàn tất.</small>
+          </fieldset>
         )}
 
         <label>
