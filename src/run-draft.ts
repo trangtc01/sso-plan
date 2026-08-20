@@ -12,6 +12,7 @@ export interface RunDraftOptions {
   filePath: string | undefined;
   caption?: string;
   onState?: (state: RunState, error?: string) => Promise<void>;
+  onStep?: (stepName: string) => Promise<void>;
 }
 
 export async function runDraft(options: RunDraftOptions, config: AppConfig, adapterFactory: AdapterFactory = (cfg, dir) => new PlaywrightTikTokDraftAdapter(cfg, dir)): Promise<number> {
@@ -35,12 +36,25 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
     await adapter.open();
     await diagnostics.transition("CHECKING_SESSION");
     await adapter.ensureAuthenticated();
+    await options.onStep?.("Mở trang TikTok Studio thành công");
+
     await diagnostics.transition("OPENING_UPLOAD_PAGE");
     await diagnostics.transition("UPLOADING");
     await adapter.upload(input.path);
+    await options.onStep?.("Chọn file video thành công");
+
+    if (adapter.selectSound) {
+      await adapter.selectSound().catch(err => {
+        console.warn(`[TikTok Adapter] Sound selection warning: ${err instanceof Error ? err.message : String(err)}`);
+      });
+      await options.onStep?.("Thêm nhạc/âm thanh thành công");
+    }
+
     await adapter.setCaption(options.caption ?? "");
     await diagnostics.transition("READY_TO_SAVE");
     await adapter.screenshot("before-save-draft");
+    await options.onStep?.("Điền caption thành công, nút Save Draft đã sẵn sàng");
+
     await diagnostics.transition("SAVING_DRAFT");
     await report(options, "SAVING_DRAFT");
     saveClicked = true;
@@ -51,6 +65,8 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
     await adapter.screenshot("verified-draft");
     await diagnostics.finish("DRAFT_SAVED");
     await report(options, "DRAFT_SAVED");
+    await adapter.navigateToDraftsList?.().catch(() => undefined);
+    await options.onStep?.("Đã lưu nháp và chuyển đến trang danh sách Draft. Bấm ENTER để kết thúc và đóng trình duyệt");
     return EXIT_CODE.SUCCESS;
   } catch (error) {
     const message = messageOf(error);
