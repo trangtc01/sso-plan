@@ -13,6 +13,12 @@ export interface RunDraftOptions {
   caption?: string;
   publishMode?: "DRAFT" | "PUBLIC";
   onPublishedUrl?: (url: string | undefined) => Promise<void>;
+  publishedDownloadPath?: string;
+  onPublishedDownload?: (result: {
+    url: string | undefined;
+    downloadedPath?: string;
+    error?: string;
+  }) => Promise<void>;
   onState?: (state: RunState, error?: string) => Promise<void>;
   onStep?: (stepName: string) => Promise<void>;
 }
@@ -73,6 +79,27 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
 
       const publishedUrl = await adapter.getPublishedUrl?.().catch(() => undefined);
       await options.onPublishedUrl?.(publishedUrl);
+
+      if (options.publishedDownloadPath && publishedUrl && adapter.downloadPublishedVideo) {
+        try {
+          const downloadedPath = await adapter.downloadPublishedVideo(
+            publishedUrl,
+            options.publishedDownloadPath,
+          );
+          await options.onPublishedDownload?.({
+            url: publishedUrl,
+            downloadedPath,
+          });
+        } catch (error) {
+          // Download failure must not turn a successfully published TikTok post into a
+          // failed publish. The worker can fallback to yt-dlp using the published URL.
+          await options.onPublishedDownload?.({
+            url: publishedUrl,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       await adapter.screenshot("verified-published");
       await diagnostics.finish("PUBLISHED");
       await report(options, "PUBLISHED");

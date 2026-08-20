@@ -1,5 +1,7 @@
 import type { BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { AppConfig } from "./config.js";
 import { LoginRequiredError, UploadError } from "./errors.js";
 
@@ -14,6 +16,7 @@ export interface TikTokDraftAdapter {
   publish(): Promise<void>;
   verifyPublished(): Promise<boolean>;
   getPublishedUrl?(): Promise<string | undefined>;
+  downloadPublishedVideo?(videoUrl: string, outputPath: string): Promise<string>;
   navigateToDraftsList?(): Promise<void>;
   screenshot(name: string): Promise<void>;
   close(): Promise<void>;
@@ -299,6 +302,41 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
     return false;
   }
 
+  private async handlePublishConfirmationModal(page: import("playwright").Page): Promise<boolean> {
+    // Check for TikTok copyright / check modal: "Tiếp tục đăng?" / "Post anyway"
+    const modalConfirmBtn = page.locator(
+      '.TUXModal-overlay button.TUXButton--primary, ' +
+      '.common-modal-confirm-modal button.TUXButton--primary, ' +
+      '[role="dialog"] button:has-text("Đăng ngay"), ' +
+      '[role="dialog"] button:has-text("Post now"), ' +
+      '[role="dialog"] button:has-text("Publish anyway"), ' +
+      '[role="dialog"] button:has-text("Vẫn đăng")'
+    ).first();
+
+    if (await modalConfirmBtn.isVisible({ timeout: 2_500 }).catch(() => false)) {
+      console.log("[TikTok Adapter] Publish confirmation modal ('Tiếp tục đăng?') detected. Clicking 'Đăng ngay / Post anyway'...");
+      await modalConfirmBtn.click({ timeout: 5_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_500);
+      return true;
+    }
+
+    const confirmations = [
+      page.getByRole("button", { name: /^đăng ngay$|^post now$|^post anyway$|^publish anyway$|^vẫn đăng$|^tiếp tục đăng$/i }).first(),
+      page.locator("button").filter({ hasText: /^đăng ngay$|^post now$|^post anyway$|^publish anyway$|^vẫn đăng$|^tiếp tục đăng$/i }).first(),
+    ];
+
+    for (const confirm of confirmations) {
+      if (await confirm.isVisible({ timeout: 1_500 }).catch(() => false)) {
+        console.log("[TikTok Adapter] Confirmation button detected; clicking...");
+        await confirm.click({ timeout: 5_000 }).catch(() => undefined);
+        await page.waitForTimeout(1_500);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async publish(): Promise<void> {
     const page = this.requirePage();
     await this.dismissPopups().catch(() => undefined);
@@ -324,35 +362,40 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
       throw new UploadError("TikTok Post/Publish button was not found or enabled");
     }
 
-    const confirmations = [
-      page.getByRole("button", { name: /post anyway|publish anyway|continue posting|continue|đăng dù sao|vẫn đăng|tiếp tục/i }).first(),
-      page.locator("button").filter({ hasText: /post anyway|publish anyway|continue|vẫn đăng|tiếp tục/i }).first(),
-    ];
-
-    for (const confirm of confirmations) {
-      if (await confirm.isVisible({ timeout: 4_000 }).catch(() => false)) {
-        console.log("[TikTok Adapter] Publish confirmation modal detected; confirming...");
-        await confirm.click({ timeout: 10_000 });
-        break;
-      }
-    }
+    // Check for "Tiếp tục đăng?" modal immediately after clicking Post
+    await page.waitForTimeout(2_000);
+    await this.handlePublishConfirmationModal(page);
   }
 
   async verifyPublished(): Promise<boolean> {
     const page = this.requirePage();
+
+    // Handle any delayed modal popup ("Tiếp tục đăng?")
+    await this.handlePublishConfirmationModal(page);
+
     const confirmation = page.getByText(
-      /video\s+(has been\s+)?posted|post(ed)?\s+successfully|published\s+successfully|đã\s+đăng|đăng\s+thành\s+công/i,
+      /video\s+(has been\s+)?posted|post(ed)?\s+successfully|published\s+successfully|đã\s+đăng|đăng\s+thành\s+công|đã\s+tải\s+lên|đang\s+xử\s+lý|quản\s+lý\s+bài\s+viết|your\s+video|uploaded\s+successfully|xem\s+bài\s+viết/i,
     ).first();
 
-    if (await confirmation.isVisible({ timeout: 20_000 }).catch(() => false)) return true;
+    if (await confirmation.isVisible({ timeout: 15_000 }).catch(() => false)) return true;
 
-    await page.waitForTimeout(2_000);
-    if (/tiktokstudio\/(content|posts|manage)|creator-center\/content/i.test(page.url())) {
+    // Retry checking modal in case it appeared late
+    await this.handlePublishConfirmationModal(page);
+
+    await page.waitForTimeout(3_000);
+    const currentUrl = page.url();
+    if (/tiktokstudio\/(content|posts|manage)|creator-center\/content|\/content/i.test(currentUrl)) {
       const submitStillVisible = await page.getByRole("button", {
         name: /^post$|^publish$|^đăng$|^đăng ngay$/i,
       }).first().isVisible().catch(() => false);
       if (!submitStillVisible) return true;
     }
+
+    const postBtnVisible = await page.getByRole("button", {
+      name: /^post$|^publish$|^đăng$|^đăng ngay$/i,
+    }).first().isVisible().catch(() => false);
+
+    if (!postBtnVisible) return true;
 
     return await confirmation.isVisible({ timeout: 5_000 }).catch(() => false);
   }
@@ -388,6 +431,116 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
     } catch {
       return undefined;
     }
+  }
+
+  async downloadPublishedVideo(videoUrl: string, outputPath: string): Promise<string> {
+    const page = this.requirePage();
+    const context = this.context;
+    if (!context) throw new UploadError("TikTok browser context is not initialized");
+
+    await mkdir(path.dirname(outputPath), { recursive: true });
+
+    console.log(`[TikTok Adapter] Playwright download: opening published video ${videoUrl}`);
+
+    const mediaCandidates: string[] = [];
+    const onResponse = (response: import("playwright").Response) => {
+      const url = response.url();
+      const headers = response.headers();
+      const contentType = headers["content-type"] ?? "";
+
+      if (
+        contentType.toLowerCase().startsWith("video/") ||
+        /(?:tiktokcdn|tiktokv|byteoversea|ibytedtos|muscdn).*?(?:video|play|tos)/i.test(url) ||
+        /\.mp4(?:\?|$)/i.test(url)
+      ) {
+        if (!mediaCandidates.includes(url)) mediaCandidates.push(url);
+      }
+    };
+
+    page.on("response", onResponse);
+    try {
+      await page.goto(videoUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+
+      const video = page.locator("video").first();
+      await video.waitFor({ state: "attached", timeout: 20_000 }).catch(() => undefined);
+
+      const domMedia = await video.getAttribute("src").catch(() => null);
+      if (domMedia && !domMedia.startsWith("blob:")) {
+        mediaCandidates.unshift(new URL(domMedia, page.url()).toString());
+      }
+
+      // Give TikTok's player time to request the real media URL.
+      await page.waitForTimeout(4_000);
+    } finally {
+      page.off("response", onResponse);
+    }
+
+    const uniqueCandidates = [...new Set(mediaCandidates)].filter(
+      candidate => candidate.startsWith("http://") || candidate.startsWith("https://"),
+    );
+
+    if (!uniqueCandidates.length) {
+      throw new UploadError(
+        "Playwright could not discover a downloadable TikTok media URL from DOM/network responses",
+      );
+    }
+
+    let lastError: unknown;
+    for (const mediaUrl of uniqueCandidates) {
+      try {
+        console.log(`[TikTok Adapter] Playwright download: trying media URL ${mediaUrl.slice(0, 160)}`);
+
+        const response = await context.request.get(mediaUrl, {
+          headers: {
+            Referer: videoUrl,
+            "User-Agent": await page.evaluate(() => navigator.userAgent),
+          },
+          timeout: 120_000,
+        });
+
+        if (!response.ok()) {
+          lastError = new Error(`HTTP ${response.status()} ${response.statusText()}`);
+          continue;
+        }
+
+        const contentType = response.headers()["content-type"] ?? "";
+        const body = await response.body();
+
+        if (body.length < 32 * 1024) {
+          lastError = new Error(`Downloaded media response is suspiciously small (${body.length} bytes)`);
+          continue;
+        }
+
+        if (
+          contentType &&
+          !contentType.toLowerCase().startsWith("video/") &&
+          !contentType.toLowerCase().includes("octet-stream")
+        ) {
+          lastError = new Error(`Unexpected media content-type: ${contentType}`);
+          continue;
+        }
+
+        await writeFile(outputPath, body);
+        console.log(
+          `[TikTok Adapter] Playwright download completed: ${outputPath} (${body.length} bytes)`,
+        );
+        return outputPath;
+      } catch (error) {
+        lastError = error;
+        console.warn(
+          `[TikTok Adapter] Playwright media candidate failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    throw new UploadError(
+      `Playwright TikTok download failed for all discovered media URLs: ${
+        lastError instanceof Error ? lastError.message : String(lastError ?? "unknown error")
+      }`,
+    );
   }
 
   async navigateToDraftsList(): Promise<void> {

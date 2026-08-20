@@ -6,7 +6,11 @@ const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 export function UploadForm() {
   const [message, setMessage] = useState("");
   const [platforms, setPlatforms] = useState<string[]>(["TIKTOK"]);
+  const [tiktokPublishMode, setTiktokPublishMode] = useState<"DRAFT" | "PUBLIC">("DRAFT");
   const defaultPublishAt = useMemo(() => toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000)), []);
+  const tiktokHasDownstream =
+    platforms.includes("TIKTOK") &&
+    platforms.some(platform => platform !== "TIKTOK");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +36,7 @@ export function UploadForm() {
       if (!response.ok) throw new Error(await response.text());
       event.currentTarget.reset();
       setPlatforms(["TIKTOK"]);
+      setTiktokPublishMode("DRAFT");
       setMessage("Đã upload video và tạo lịch đăng.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload thất bại");
@@ -56,7 +61,14 @@ export function UploadForm() {
             value={platforms}
             required
             onChange={event => {
-              setPlatforms(Array.from(event.currentTarget.selectedOptions).map(option => option.value));
+              const nextPlatforms = Array.from(event.currentTarget.selectedOptions).map(option => option.value);
+              setPlatforms(nextPlatforms);
+
+              const hasTikTok = nextPlatforms.includes("TIKTOK");
+              const hasDownstream = nextPlatforms.some(platform => platform !== "TIKTOK");
+              if (hasTikTok && hasDownstream) {
+                setTiktokPublishMode("PUBLIC");
+              }
             }}
           >
             <option value="FACEBOOK">Facebook</option>
@@ -103,12 +115,26 @@ export function UploadForm() {
             <legend>TikTok</legend>
             <label>
               Chế độ đăng
-              <select name="tiktokPublishMode" defaultValue="DRAFT">
-                <option value="DRAFT">Draft</option>
+              <select
+                name="tiktokPublishMode"
+                value={tiktokPublishMode}
+                onChange={event => setTiktokPublishMode(event.currentTarget.value as "DRAFT" | "PUBLIC")}
+              >
+                <option value="DRAFT" disabled={tiktokHasDownstream}>
+                  Draft
+                </option>
                 <option value="PUBLIC">Public</option>
               </select>
             </label>
-            <small>Draft là mặc định để tránh vô tình đăng công khai. Public sẽ tự bấm Post sau khi upload hoàn tất.</small>
+            {tiktokHasDownstream ? (
+              <small>
+                TikTok được tự động chuyển sang Public vì Facebook/YouTube cần tải lại video sau khi TikTok đăng xong.
+              </small>
+            ) : (
+              <small>
+                Draft là mặc định khi chỉ đăng TikTok. Public sẽ tự bấm Post sau khi upload hoàn tất.
+              </small>
+            )}
           </fieldset>
         )}
 

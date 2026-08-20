@@ -10,6 +10,7 @@ import type { PublishResult, SocialVideoInput, YoutubePrivacy } from "./types.js
 export interface YoutubePublishOptions {
   privacy?: YoutubePrivacy;
   madeForKids?: boolean;
+  onStep?: (stepName: string) => Promise<void>;
 }
 
 interface LaunchedChrome {
@@ -47,6 +48,7 @@ export class YoutubePlaywrightPublisher {
       chrome = await this.launchViaCdp();
       page = chrome.context.pages()[0] ?? await chrome.context.newPage();
       page.setDefaultTimeout(30_000);
+      await options.onStep?.("[Step 2/12] Đã kết nối trình duyệt Chrome qua CDP");
 
       this.log(`[Step 3/12] Navigating to YouTube Studio: ${this.config.uploadUrl}...`);
       await this.gotoStudio(page);
@@ -55,6 +57,7 @@ export class YoutubePlaywrightPublisher {
       this.log(`[Step 4/12] Verifying authentication session...`);
       await this.ensureAuthenticated(page);
       this.log(`[Auth Check] Session is authenticated successfully`);
+      await options.onStep?.("[Step 4/12] Đã xác nhận phiên đăng nhập YouTube Studio");
 
       this.log(`[Step 5/12] Opening Upload dialog...`);
       await this.openUploadDialog(page);
@@ -63,6 +66,7 @@ export class YoutubePlaywrightPublisher {
       this.log(`[Step 6/12] Attaching video file: ${file.path}...`);
       await this.setVideoFile(page, file.path);
       this.log(`[File Upload] Video file attached`);
+      await options.onStep?.("[Step 6/12] Đã đính kèm file video vào khung Upload Studio");
 
       const dialog = page.locator("ytcp-uploads-dialog").first();
       await dialog.waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
@@ -84,6 +88,7 @@ export class YoutubePlaywrightPublisher {
         this.log(`  -> Tags: ${input.tags.join(", ")}`);
         await this.fillTagsBestEffort(page, input.tags);
       }
+      await options.onStep?.("[Step 7/12] Đã điền xong thông tin metadata (Title, Description, Audience, Tags)");
 
       this.log(`[Step 8/12] Reading video URL from Studio...`);
       const videoUrl = await this.readVideoUrl(page);
@@ -96,9 +101,11 @@ export class YoutubePlaywrightPublisher {
       this.log(`[Step 10/12] Setting privacy: ${privacy}...`);
       await this.selectPrivacy(page, privacy);
       await this.screenshot(page, runDir, "before-publish.png");
+      await options.onStep?.(`[Step 10/12] Đã chọn chế độ quyền riêng tư ${privacy}`);
 
       this.log(`[Step 11/12] Clicking Save/Publish/Done button...`);
       await this.clickDone(page);
+      await options.onStep?.("[Step 11/12] Đã bấm nút Save/Publish");
 
       this.log(`[Step 12/12] Waiting for publish confirmation...`);
       const confirmation = await this.waitForPublishConfirmation(page, dialog, privacy);
@@ -678,14 +685,23 @@ async function connectWithRetry(
   let lastError: unknown;
 
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) {
-      throw new Error(`Chrome exited before CDP became ready (exit=${child.exitCode})`);
-    }
-
     try {
       return await chromium.connectOverCDP(endpoint);
     } catch (error) {
       lastError = error;
+      if (child.exitCode !== null) {
+        // Child process exited (common when Chrome process delegates to an already running Chrome instance)
+        // Give CDP endpoint one final check before giving up.
+        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          return await chromium.connectOverCDP(endpoint);
+        } catch {
+          throw new Error(
+            `Chrome process exited with code ${child.exitCode} and CDP port 9222 is not active. ` +
+            `If Google Chrome is currently open, please quit Chrome completely before retrying.`,
+          );
+        }
+      }
       await new Promise(resolve => setTimeout(resolve, 300));
     }
   }

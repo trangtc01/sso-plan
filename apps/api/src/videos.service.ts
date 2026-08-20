@@ -255,10 +255,29 @@ export class VideosService {
   }
 }
 
-function normalizePlatforms(platforms?: Platform[]): Platform[] {
-  const result = [...new Set(platforms?.length ? platforms : [Platform.TIKTOK])];
+function normalizePlatforms(platforms?: unknown): Platform[] {
+  let list: string[] = [];
+  if (Array.isArray(platforms)) {
+    list = platforms.flatMap(item => parsePlatformString(item));
+  } else if (typeof platforms === "string") {
+    list = parsePlatformString(platforms);
+  }
+
+  const validPlatforms = Object.values(Platform) as string[];
+  const filtered = list.filter((item): item is Platform => validPlatforms.includes(item));
+  const result = [...new Set(filtered.length ? filtered : [Platform.TIKTOK])];
   if (!result.length) throw new BadRequestException("At least one platform is required");
   return result;
+}
+
+function parsePlatformString(value: unknown): string[] {
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+  } catch {
+    return value.split(",").map(item => item.trim()).filter(Boolean);
+  }
 }
 
 function normalizePublishTime(value?: string): Date {

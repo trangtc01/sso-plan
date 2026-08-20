@@ -23,10 +23,10 @@ Important:
 - **TikTok-First Multiplatform Flow**: When TikTok is selected together with Facebook/YouTube:
   - TikTok publish mode MUST be `PUBLIC`.
   - Downstream Facebook/YouTube jobs start in `WAITING_SOURCE` state.
-  - After TikTok publishes successfully, the worker downloads the public TikTok video using `yt-dlp` to `Video.tiktokDownloadedPath`.
+  - After TikTok publishes successfully, the worker downloads the public TikTok video via Playwright network/DOM media capture before closing browser context (with `yt-dlp` fallback) to `Video.tiktokDownloadedPath`.
   - `Video.outputPath` is set to the downloaded TikTok video path.
   - Downstream Facebook/YouTube jobs are released (`WAITING_SOURCE` -> `SCHEDULED`) and enqueued.
-  - If TikTok URL resolution or download fails, downstream jobs become `FAILED` (no silent fallback).
+  - If TikTok URL resolution and all download methods fail, downstream jobs become `FAILED` (no silent fallback).
 - `AMBIGUOUS` must not be blindly retried after a possible Save Draft or Post/Publish.
 - Manual login/MFA/CAPTCHA recovery is allowed; bypass is not.
 - Profile concurrency must remain controlled.

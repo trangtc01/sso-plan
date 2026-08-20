@@ -52,13 +52,19 @@ export class RerunDto {
 }
 
 function parseJsonArray(value: unknown, fallback: string[]): string[] {
-  if (Array.isArray(value)) return value.map(String);
   if (value === undefined || value === null || value === "") return fallback;
+  if (Array.isArray(value)) {
+    const flattened = value.flatMap(item => parseJsonArray(item, []));
+    return flattened.length ? flattened : fallback;
+  }
   if (typeof value !== "string") return fallback;
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String) : fallback;
+    if (Array.isArray(parsed)) return parsed.map(String);
+    if (parsed !== null && parsed !== undefined && parsed !== "") return [String(parsed)];
+    return fallback;
   } catch {
-    return value.split(",").map(item => item.trim()).filter(Boolean);
+    const split = value.split(",").map(item => item.trim()).filter(Boolean);
+    return split.length ? split : fallback;
   }
 }

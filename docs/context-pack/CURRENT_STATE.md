@@ -25,14 +25,17 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - Facebook/YouTube use `PublishJob` with `status: WAITING_SOURCE` when TikTok is included (or `SCHEDULED` if TikTok is not selected)
 - when TikTok is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
 
-### Worker
+### Worker & CLI
 - TikTok worker handles `DRAFT` and `PUBLIC`
+- Auto-handles TikTok copyright/pre-check modal (`Tiếp tục đăng?` / `Post anyway`) by clicking `Đăng ngay` during `publish()` and `verifyPublished()`
+- CLI supports interactive `--pause` mode across TikTok (`tiktok:draft`, `tiktok:publish`, `tiktok:download`), YouTube (`upload:youtube`), and Facebook (`social:upload`)
+- CLI automatically extracts and outputs published TikTok URL and pre-filled copy-paste download commands upon publish completion
 - On `PUBLIC` completion with downstream platforms waiting:
   1. Resolves published TikTok URL (`tiktokPublishedUrl`)
-  2. Downloads TikTok video via `yt-dlp` (`tiktokDownloadedPath`)
+  2. Downloads TikTok video via Playwright network/DOM media URL capture before context close (with `yt-dlp` fallback) to `tiktokDownloadedPath`
   3. Updates `Video.outputPath` to downloaded TikTok file
   4. Releases downstream Facebook/YouTube jobs from `WAITING_SOURCE` -> `SCHEDULED` and enqueues to BullMQ
-  5. If URL resolution or download fails, downstream jobs become `FAILED` (no silent fallback to original file)
+  5. If URL resolution and all download methods fail, downstream jobs become `FAILED` (no silent fallback to original file)
 - Facebook worker publishes using `video.outputPath ?? video.sourcePath`
 - YouTube worker uses CDP mode with process cleanup (`SIGTERM` -> 3s -> `SIGKILL`) using `video.outputPath ?? video.sourcePath`
 

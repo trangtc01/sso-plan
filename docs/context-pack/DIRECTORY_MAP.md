@@ -39,6 +39,7 @@
 │
 ├── tests/
 ├── docs/
+├── start.sh                One-click local startup script
 └── package.json
 ```
 

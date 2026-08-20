@@ -8,6 +8,18 @@ import type { FacebookVideoState, SocialVideoInput, YoutubePrivacy } from "./typ
 
 const [command, ...args] = process.argv.slice(2);
 
+import readline from "node:readline";
+
+function promptEnter(stepMessage: string): Promise<void> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(`\n[PAUSE] ${stepMessage}\n👉 Bấm ENTER để tiếp tục bước tiếp theo... `, () => {
+      rl.close();
+      resolve();
+    });
+  });
+}
+
 try {
   if (command === "youtube-bootstrap") {
     await bootstrapYoutubeProfile(loadYoutubePlaywrightConfig());
@@ -24,16 +36,17 @@ try {
 
 async function runUpload(args: string[]): Promise<void> {
   const flags = parseFlags(args);
-  const platform = (flags.platform ?? "all").toLowerCase();
+  const isPauseMode = Boolean(flags.pause || flags.step || flags.p);
+  const platform = (String(flags.platform ?? "all")).toLowerCase();
   if (!new Set(["facebook", "youtube", "all"]).has(platform)) {
     throw new Error("--platform must be facebook, youtube, or all");
   }
 
   const fileArg = requiredFlag(flags, "file");
   const file = await validateVideoFile(fileArg);
-  const title = flags.title?.trim() || file.defaultTitle;
-  const description = flags.description ?? "";
-  const tags = (flags.tags ?? "")
+  const title = (flags.title as string)?.trim() || file.defaultTitle;
+  const description = (flags.description as string) ?? "";
+  const tags = ((flags.tags as string) ?? "")
     .split(",")
     .map(value => value.trim().replace(/^#/, ""))
     .filter(Boolean);
@@ -42,17 +55,19 @@ async function runUpload(args: string[]): Promise<void> {
 
   if (platform === "facebook" || platform === "all") {
     const config = loadFacebookConfig();
-    const state = normalizeFacebookState(flags["facebook-state"] ?? config.defaultVideoState);
+    const state = normalizeFacebookState((flags["facebook-state"] as string) ?? config.defaultVideoState);
     process.stdout.write(`Uploading to Facebook (${state})...\n`);
+    if (isPauseMode) await promptEnter("Chuẩn bị gọi Meta Graph API để tải video Reel lên Facebook");
     const result = await new FacebookReelsPublisher(config).publish(input, state);
     process.stdout.write(`Facebook OK: video_id=${result.externalId}, state=${result.state}\n`);
+    if (isPauseMode) await promptEnter("Đã hoàn tất đăng video Reel lên Facebook");
   }
 
   if (platform === "youtube" || platform === "all") {
     const config = loadYoutubePlaywrightConfig();
-    const privacy = normalizeYoutubePrivacy(flags["youtube-privacy"] ?? config.defaultPrivacy);
+    const privacy = normalizeYoutubePrivacy((flags["youtube-privacy"] as string) ?? config.defaultPrivacy);
     const madeForKids = normalizeBoolean(
-      flags["made-for-kids"] ?? String(config.defaultMadeForKids),
+      (flags["made-for-kids"] as string) ?? String(config.defaultMadeForKids),
       "--made-for-kids",
     );
 
@@ -62,32 +77,41 @@ async function runUpload(args: string[]): Promise<void> {
       `[YouTube] profile=${config.chromeProfileDirectory ?? "Default"}`,
       `[YouTube] executable=${config.chromeExecutablePath ?? "Playwright bundled Chromium"}`,
       `[YouTube] privacy=${privacy}`,
+      `[YouTube] pauseMode=${isPauseMode ? "ENABLED" : "disabled"}`,
       "",
     ].join("\n"));
 
-    const result = await new YoutubePlaywrightPublisher(config).publish(input, { privacy, madeForKids });
+    const result = await new YoutubePlaywrightPublisher(config).publish(input, {
+      privacy,
+      madeForKids,
+      onStep: isPauseMode ? promptEnter : undefined,
+    });
     process.stdout.write(
       `YouTube OK: video_id=${result.externalId}, state=${result.state}${result.url ? `, url=${result.url}` : ""}\n`,
     );
+    if (isPauseMode) await promptEnter("Đã hoàn tất đăng video lên YouTube Studio");
   }
 }
 
-function parseFlags(args: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
+function parseFlags(args: string[]): Record<string, string | boolean> {
+  const result: Record<string, string | boolean> = {};
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
-    if (!token?.startsWith("--")) throw new Error(`Unexpected argument: ${token}`);
-    const key = token.slice(2);
+    if (!token?.startsWith("--") && !token?.startsWith("-")) throw new Error(`Unexpected argument: ${token}`);
+    const key = token.replace(/^-+/, "");
     const value = args[index + 1];
-    if (!value || value.startsWith("--")) throw new Error(`Missing value for --${key}`);
-    result[key] = value;
-    index += 1;
+    if (!value || value.startsWith("-")) {
+      result[key] = true;
+    } else {
+      result[key] = value;
+      index += 1;
+    }
   }
   return result;
 }
 
-function requiredFlag(flags: Record<string, string>, key: string): string {
-  const value = flags[key]?.trim();
+function requiredFlag(flags: Record<string, string | boolean>, key: string): string {
+  const value = typeof flags[key] === "string" ? (flags[key] as string).trim() : "";
   if (!value) throw new Error(`--${key} is required`);
   return value;
 }

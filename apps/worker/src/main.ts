@@ -47,10 +47,18 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
     .join(" ");
 
   let publishedUrl: string | undefined;
+  let playwrightDownloadedPath: string | undefined;
+  let playwrightDownloadError: string | undefined;
+  const tiktokDownloadDir = path.resolve(
+    process.env.TIKTOK_DOWNLOAD_DIR ?? ".social-automation/tiktok-downloads",
+  );
+  const preferredDownloadPath = path.join(tiktokDownloadDir, `${job.videoId}.mp4`);
+
   const code = await runDraft({
     filePath: job.video.outputPath ?? job.video.sourcePath,
     caption,
     publishMode: job.publishMode,
+    publishedDownloadPath: preferredDownloadPath,
     onPublishedUrl: async url => {
       publishedUrl = url;
       if (url) {
@@ -58,6 +66,27 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
           where: { id: job.videoId },
           data: { tiktokPublishedUrl: url },
         });
+      }
+    },
+    onPublishedDownload: async result => {
+      if (result.downloadedPath) {
+        playwrightDownloadedPath = result.downloadedPath;
+        await prisma.video.update({
+          where: { id: job.videoId },
+          data: {
+            tiktokPublishedUrl: result.url,
+            tiktokDownloadedPath: result.downloadedPath,
+            outputPath: result.downloadedPath,
+          },
+        });
+        console.log(
+          `[TikTok Worker] Playwright downloaded published TikTok video: ${result.downloadedPath}`,
+        );
+      } else if (result.error) {
+        playwrightDownloadError = result.error;
+        console.warn(
+          `[TikTok Worker] Playwright TikTok download failed; yt-dlp fallback will be used: ${result.error}`,
+        );
       }
     },
     onState: async (state, error) => updateTikTokStatus(
@@ -98,8 +127,17 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
   }
 
   try {
-    const downloadedPath = latestVideo?.tiktokDownloadedPath
-      ?? await downloadTikTokVideo(job.videoId, finalPublishedUrl);
+    let downloadedPath =
+      playwrightDownloadedPath ??
+      latestVideo?.tiktokDownloadedPath;
+
+    if (!downloadedPath) {
+      console.warn(
+        `[TikTok Worker] Falling back to yt-dlp for ${finalPublishedUrl}` +
+        (playwrightDownloadError ? ` because Playwright failed: ${playwrightDownloadError}` : ""),
+      );
+      downloadedPath = await downloadTikTokVideoWithYtDlp(job.videoId, finalPublishedUrl);
+    }
 
     await prisma.video.update({
       where: { id: job.videoId },
@@ -226,7 +264,7 @@ async function failWaitingDownstream(videoId: string, errorMessage: string) {
   });
 }
 
-async function downloadTikTokVideo(videoId: string, url: string): Promise<string> {
+async function downloadTikTokVideoWithYtDlp(videoId: string, url: string): Promise<string> {
   const downloadDir = path.resolve(
     process.env.TIKTOK_DOWNLOAD_DIR ?? ".social-automation/tiktok-downloads",
   );
