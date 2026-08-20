@@ -1,6 +1,6 @@
 import { Transform } from "class-transformer";
 import { IsArray, IsBoolean, IsEnum, IsISO8601, IsOptional, IsString, MaxLength } from "class-validator";
-import { Platform } from "@prisma/client";
+import { FacebookContentType, Platform, PublishMode } from "@prisma/client";
 
 export class CreateVideoDto {
   @IsString()
@@ -27,6 +27,18 @@ export class CreateVideoDto {
   @IsOptional()
   @IsISO8601()
   publishAt?: string;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  facebookPublishMode: PublishMode = PublishMode.PUBLIC;
+
+  @IsOptional()
+  @IsEnum(FacebookContentType)
+  facebookContentType: FacebookContentType = FacebookContentType.REEL;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  youtubePublishMode: PublishMode = PublishMode.PUBLIC;
 }
 
 export class RerunDto {

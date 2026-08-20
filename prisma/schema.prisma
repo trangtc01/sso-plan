@@ -25,6 +25,16 @@ enum Platform {
   TIKTOK
 }
 
+enum PublishMode {
+  DRAFT
+  PUBLIC
+}
+
+enum FacebookContentType {
+  REEL
+  VIDEO_POST
+}
+
 enum RenderStatus {
   QUEUED
   VOICE_GENERATING
@@ -73,18 +83,20 @@ model RenderJob {
 }
 
 model PublishJob {
-  id           String        @id @default(uuid())
-  videoId      String
-  platform     Platform
-  publishTime  DateTime?
-  status       PublishStatus @default(QUEUED)
-  retryCount   Int           @default(0)
-  errorMessage String?
-  response     Json?
-  startedAt    DateTime?
-  finishedAt   DateTime?
-  createdAt    DateTime      @default(now())
-  video        Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(uuid())
+  videoId             String
+  platform            Platform
+  publishMode         PublishMode          @default(PUBLIC)
+  facebookContentType FacebookContentType?
+  publishTime         DateTime?
+  status              PublishStatus        @default(QUEUED)
+  retryCount          Int                  @default(0)
+  errorMessage        String?
+  response            Json?
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime             @default(now())
+  video               Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@index([platform, status, publishTime])
 }

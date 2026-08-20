@@ -1,6 +1,13 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
-import { Prisma, PrismaClient, PublishStatus, VideoStatus } from "@prisma/client";
+import {
+  FacebookContentType,
+  Prisma,
+  PrismaClient,
+  PublishMode,
+  PublishStatus,
+  VideoStatus,
+} from "@prisma/client";
 import { loadConfig } from "../../../src/config.js";
 import { runDraft } from "../../../src/run-draft.js";
 import type { RunState } from "../../../src/types.js";
@@ -55,12 +62,18 @@ const facebookWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.faceb
   try {
     const hashtags = job.video.hashtags.map(tag => `#${tag}`).join(" ");
     const description = [job.video.description, hashtags].filter(Boolean).join("\n\n");
+    const videoState = job.publishMode === PublishMode.DRAFT ? "DRAFT" : "PUBLISHED";
+    const contentType = job.facebookContentType === FacebookContentType.VIDEO_POST
+      ? "VIDEO_POST"
+      : "REEL";
+
     const result = await new FacebookReelsPublisher(loadFacebookConfig()).publish({
       filePath: job.video.outputPath ?? job.video.sourcePath,
       title: job.video.title,
       description,
       tags: job.video.hashtags,
-    }, "PUBLISHED");
+    }, videoState, contentType);
+
     await markPublished(job.id, result.externalId, result.raw);
   } catch (error) {
     await markPublishFailed(job.id, error);
@@ -79,7 +92,7 @@ const youtubeWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.youtub
       description: job.video.description,
       tags: job.video.hashtags,
     }, {
-      privacy: "public",
+      privacy: job.publishMode === PublishMode.DRAFT ? "private" : "public",
       madeForKids: (process.env.YOUTUBE_DEFAULT_MADE_FOR_KIDS ?? "false").toLowerCase() === "true",
     });
     await markPublished(job.id, result.externalId, result.raw);
@@ -123,13 +136,13 @@ async function markPublishing(jobId: string) {
   });
 }
 
-async function markPublished(jobId: string, externalId: string, raw: Record<string, unknown>) {
+async function markPublished(jobId: string, externalId: string, raw: unknown) {
   await prisma.publishJob.update({
     where: { id: jobId },
     data: {
       status: PublishStatus.PUBLISHED,
       finishedAt: new Date(),
-      response: { externalId, ...raw } as Prisma.InputJsonValue,
+      response: { externalId, raw } as Prisma.InputJsonValue,
     },
   });
 }

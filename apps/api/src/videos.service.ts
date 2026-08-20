@@ -1,5 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { Platform, PublishStatus, VideoStatus } from "@prisma/client";
+import {
+  FacebookContentType,
+  Platform,
+  PublishMode,
+  PublishStatus,
+  VideoStatus,
+} from "@prisma/client";
 import { Queue } from "bullmq";
 import path from "node:path";
 import { PrismaService } from "./prisma.service.js";
@@ -22,6 +28,9 @@ interface CreateInput {
   sourcePath: string;
   platforms?: Platform[];
   publishAt?: string;
+  facebookPublishMode?: PublishMode;
+  facebookContentType?: FacebookContentType;
+  youtubePublishMode?: PublishMode;
 }
 
 @Injectable()
@@ -86,10 +95,18 @@ export class VideosService {
 
       const publishJobs = [];
       for (const platform of platforms.filter(item => item !== Platform.TIKTOK)) {
+        const publishMode = platform === Platform.FACEBOOK
+          ? input.facebookPublishMode ?? PublishMode.PUBLIC
+          : input.youtubePublishMode ?? PublishMode.PUBLIC;
+
         publishJobs.push(await tx.publishJob.create({
           data: {
             videoId: video.id,
             platform,
+            publishMode,
+            facebookContentType: platform === Platform.FACEBOOK
+              ? input.facebookContentType ?? FacebookContentType.REEL
+              : null,
             publishTime,
             status: PublishStatus.SCHEDULED,
           },

@@ -1,7 +1,13 @@
 import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
 import type { FacebookConfig } from "./config.js";
-import type { FacebookVideoState, PublishResult, SocialVideoInput } from "./types.js";
+import type {
+  FacebookContentType,
+  FacebookVideoState,
+  PublishResult,
+  SocialVideoInput,
+} from "./types.js";
 import { validateVideoFile } from "./file.js";
 
 interface StartReelResponse {
@@ -15,12 +21,28 @@ interface SuccessResponse {
   error?: unknown;
 }
 
+interface VideoPostResponse {
+  id?: string;
+  error?: unknown;
+}
+
 export class FacebookReelsPublisher {
   constructor(private readonly config: FacebookConfig) {}
 
   async publish(
     input: SocialVideoInput,
     videoState: FacebookVideoState = this.config.defaultVideoState,
+    contentType: FacebookContentType = "REEL",
+  ): Promise<PublishResult> {
+    if (contentType === "VIDEO_POST") {
+      return this.publishVideoPost(input, videoState);
+    }
+    return this.publishReel(input, videoState);
+  }
+
+  private async publishReel(
+    input: SocialVideoInput,
+    videoState: FacebookVideoState,
   ): Promise<PublishResult> {
     const file = await validateVideoFile(input.filePath);
     const target = this.config.pageId ?? "me";
@@ -52,7 +74,43 @@ export class FacebookReelsPublisher {
       platform: "facebook",
       externalId: started.video_id,
       state: videoState,
-      raw: finished,
+      raw: { ...finished, contentType: "REEL" },
+    };
+  }
+
+  private async publishVideoPost(
+    input: SocialVideoInput,
+    videoState: FacebookVideoState,
+  ): Promise<PublishResult> {
+    const file = await validateVideoFile(input.filePath);
+    const target = this.config.pageId ?? "me";
+    const url = new URL(`https://graph.facebook.com/${this.config.graphVersion}/${target}/videos`);
+    url.searchParams.set("access_token", this.config.pageAccessToken);
+
+    const bytes = await readFile(file.path);
+    const form = new FormData();
+    form.set("source", new Blob([new Uint8Array(bytes)]), file.defaultTitle);
+    form.set("title", input.title);
+    if (input.description?.trim()) form.set("description", input.description.trim());
+    form.set("published", videoState === "PUBLISHED" ? "true" : "false");
+
+    const response = await fetch(url, { method: "POST", body: form });
+    const text = await response.text();
+    const parsed = parseJson(text) as VideoPostResponse | null;
+
+    if (!response.ok || !parsed?.id) {
+      throw new Error(`Facebook video post upload failed (${response.status}): ${safeJson(parsed ?? text)}`);
+    }
+
+    return {
+      platform: "facebook",
+      externalId: parsed.id,
+      state: videoState,
+      raw: {
+        contentType: "VIDEO_POST",
+        published: videoState === "PUBLISHED",
+        response: parsed,
+      },
     };
   }
 

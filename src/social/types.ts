@@ -1,4 +1,5 @@
 export type FacebookVideoState = "DRAFT" | "PUBLISHED";
+export type FacebookContentType = "REEL" | "VIDEO_POST";
 export type YoutubePrivacy = "private" | "unlisted" | "public";
 
 export interface SocialVideoInput {

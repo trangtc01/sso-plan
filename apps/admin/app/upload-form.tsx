@@ -5,6 +5,7 @@ const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export function UploadForm() {
   const [message, setMessage] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>(["TIKTOK"]);
   const defaultPublishAt = useMemo(() => toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000)), []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -15,7 +16,7 @@ export function UploadForm() {
       .split(",")
       .map(value => value.trim().replace(/^#/, ""))
       .filter(Boolean);
-    const platforms = form.getAll("platforms").map(String);
+    const selectedPlatforms = form.getAll("platforms").map(String);
     const publishAtLocal = String(form.get("publishAtLocal") ?? "");
     const publishAt = new Date(publishAtLocal);
 
@@ -23,13 +24,14 @@ export function UploadForm() {
     form.delete("publishAtLocal");
     form.delete("platforms");
     form.set("hashtags", JSON.stringify(hashtags));
-    form.set("platforms", JSON.stringify(platforms));
+    form.set("platforms", JSON.stringify(selectedPlatforms));
     form.set("publishAt", publishAt.toISOString());
 
     try {
       const response = await fetch(`${api}/videos`, { method: "POST", body: form });
       if (!response.ok) throw new Error(await response.text());
       event.currentTarget.reset();
+      setPlatforms(["TIKTOK"]);
       setMessage("Đã upload video và tạo lịch đăng.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload thất bại");
@@ -44,19 +46,67 @@ export function UploadForm() {
         <label>Video MP4 hoặc MOV<input name="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" required /></label>
         <label>Description<textarea name="description" maxLength={4000} /></label>
         <label>Hashtags (phân cách bằng dấu phẩy)<input name="hashtagsText" placeholder="danang, review, food" /></label>
+
         <label>
           Nền tảng (giữ Cmd/Ctrl để chọn nhiều)
-          <select name="platforms" multiple size={3} defaultValue={["TIKTOK"]} required>
+          <select
+            name="platforms"
+            multiple
+            size={3}
+            value={platforms}
+            required
+            onChange={event => {
+              setPlatforms(Array.from(event.currentTarget.selectedOptions).map(option => option.value));
+            }}
+          >
             <option value="FACEBOOK">Facebook</option>
             <option value="YOUTUBE">YouTube</option>
             <option value="TIKTOK">TikTok</option>
           </select>
         </label>
+
+        {platforms.includes("FACEBOOK") && (
+          <fieldset>
+            <legend>Facebook</legend>
+            <label>
+              Chế độ đăng
+              <select name="facebookPublishMode" defaultValue="PUBLIC">
+                <option value="PUBLIC">Public</option>
+                <option value="DRAFT">Draft</option>
+              </select>
+            </label>
+            <label>
+              Loại bài đăng
+              <select name="facebookContentType" defaultValue="REEL">
+                <option value="REEL">Reel</option>
+                <option value="VIDEO_POST">Video bài viết bình thường</option>
+              </select>
+            </label>
+          </fieldset>
+        )}
+
+        {platforms.includes("YOUTUBE") && (
+          <fieldset>
+            <legend>YouTube</legend>
+            <label>
+              Chế độ đăng
+              <select name="youtubePublishMode" defaultValue="PUBLIC">
+                <option value="PUBLIC">Public</option>
+                <option value="DRAFT">Draft / Private</option>
+              </select>
+            </label>
+          </fieldset>
+        )}
+
+        {platforms.includes("TIKTOK") && (
+          <small>TikTok hiện chỉ hỗ trợ Draft. Đến giờ hệ thống sẽ upload và lưu nháp để bạn kiểm tra/thêm nhạc trước khi Post.</small>
+        )}
+
         <label>
           Ngày + giờ chạy
           <input name="publishAtLocal" type="datetime-local" defaultValue={defaultPublishAt} required />
         </label>
-        <small>TikTok hiện được tạo draft theo giờ đã chọn để bạn mở app thêm nhạc trending và Post thủ công.</small>
+
         <button type="submit">Upload và tạo lịch</button>
       </form>
       <p>{message}</p>

@@ -32,7 +32,7 @@ There are two implementations/entry points:
 
 2. Scheduled publisher: `src/social/facebook-publisher.ts`
    - used by Facebook BullMQ worker
-   - current worker publishes public content
+   - supports `publishMode` (`PUBLIC` / `DRAFT`) and `facebookContentType` (`REEL` via `/{page-id}/video_reels` or `VIDEO_POST` via `/{page-id}/videos`)
 
 Observed runtime behavior from manual testing:
 - Reel upload and `/videos` upload returned distinct object IDs.

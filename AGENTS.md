@@ -45,6 +45,39 @@ Use this authority order when resolving conflicts:
 6. Keep changes minimal and scoped. Do not overwrite unrelated local changes.
 7. Never use `git add .` or `git add -A` when a task has a narrow file scope.
 8. Do not commit credentials, browser profiles, cookies, access tokens, generated artifacts, or test media.
+9. When delivering code updates externally or ingesting packages, follow the **Code Delivery & Packaging Protocol (Zip & File Mapping)** below.
+
+## Code Delivery & Packaging Protocol (Zip & File Mapping)
+
+Khi Agent lên plan và viết code/feature mới cho dự án để giao nhận (handover/delivery):
+
+1. **Packaging**: Đóng gói tất cả file code, config hoặc asset mới/thay đổi vào file `.zip` (ví dụ: `feature-update.zip`).
+2. **File Mapping Manifest (`FILE_MAPPING.md`)**:
+   Trong file `.zip` (ở thư mục gốc), BẮT BUỘC phải có file `FILE_MAPPING.md` với định dạng bảng chuẩn:
+
+   ```markdown
+   # File Mapping Guide
+
+   | Zip Path | Repository Target Path | Action | Description |
+   |---|---|---|---|
+   | `src/new-feature.ts` | `apps/api/src/new-feature.ts` | `CREATE` | Thêm mới module feature |
+   | `social/config.ts` | `src/social/config.ts` | `OVERWRITE` | Cập nhật cấu hình |
+   | `old-file.ts` | `src/old-file.ts` | `DELETE` | Xóa file cũ không dùng |
+   ```
+
+   Các giá trị `Action` hợp lệ:
+   - `CREATE`: Thêm mới file vào codebase.
+   - `OVERWRITE`: Ghi đè toàn bộ nội dung file hiện tại trong codebase.
+   - `PATCH`: Áp dụng chỉnh sửa/diff cụ thể vào file hiện tại.
+   - `DELETE`: Xóa file tương ứng khỏi codebase.
+
+3. **Ingestion & Application Protocol (Dành cho AI Agent tiếp quản dự án)**:
+   Khi nhận gói file `.zip` từ Agent khác hoặc external delivery:
+   - Giải nén file `.zip` vào thư mục tạm/scratch.
+   - Đọc và parse `FILE_MAPPING.md` để đối chiếu với trạng thái repository hiện tại (`git status`).
+   - Copy / apply từng file theo đúng sơ đồ `Target Path` và `Action`.
+   - Chạy build/tests (`npm run build`, test suites) để đảm bảo không đứt gãy.
+   - Review và update canonical docs trong `docs/context-pack/` theo Closed-Loop Workflow trước khi đánh giá task `DONE`.
 
 ## Documentation Update Matrix
 

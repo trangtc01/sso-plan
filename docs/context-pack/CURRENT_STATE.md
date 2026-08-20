@@ -10,15 +10,19 @@ Baseline reviewed: `8b5857401fd652df1fb70e2c12d8cb8ac7525a26`.
 - description
 - hashtags
 - multi-select Facebook / YouTube / TikTok
+- per-platform scheduling options:
+  - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`)
+  - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private)
+  - TikTok: Draft-only note
 - datetime-local publish time
-- bulk TXT import
+- bulk TXT import (uses default PUBLIC modes)
 - video/job list
 - rerun controls
 
 ### API / scheduling
 - creates `Video`
 - TikTok uses `UploadJob` with `publishTime`
-- Facebook/YouTube use `PublishJob`
+- Facebook/YouTube use `PublishJob` with persisted `publishMode` (`PUBLIC`/`DRAFT`) and `facebookContentType` (`REEL`/`VIDEO_POST`)
 - `publishTime` is persisted
 - BullMQ delayed jobs are created at request/import time
 - per-platform queues are used
@@ -26,8 +30,8 @@ Baseline reviewed: `8b5857401fd652df1fb70e2c12d8cb8ac7525a26`.
 
 ### Worker
 - TikTok worker creates draft with Playwright
-- Facebook worker publishes with `FacebookReelsPublisher`
-- YouTube worker publishes with `YoutubePlaywrightPublisher`
+- Facebook worker publishes using stored `publishMode` (`DRAFT`/`PUBLISHED`) and `facebookContentType` (`REEL` via `/video_reels`, `VIDEO_POST` via `/videos`)
+- YouTube worker publishes using stored `publishMode` (`DRAFT` -> `private`, `PUBLIC` -> `public`)
 - publish jobs transition through PUBLISHING/PUBLISHED/FAILED
 
 ### Facebook direct CLI
