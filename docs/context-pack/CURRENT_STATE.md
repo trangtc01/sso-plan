@@ -42,6 +42,7 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - when TikTok with sound is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
 
 ### Worker & CLI
+- TikTok CLI adds `tiktok:trending-audio -- --duration <seconds>`: crawls the configured public Discover trending-sound page, resolves candidate video `playCount` + sound metadata from TikTok hydration data, filters sounds whose duration covers the target video, deduplicates by `musicId`, selects the candidate backed by the highest-view source video, downloads the sound URL, and trims/transcodes it to MP3 with FFmpeg. Supports interactive `--pause` / `--step` / `-p` checkpoints like the existing TikTok CLI.
 - TikTok worker handles `DRAFT` and `PUBLIC`
 - Auto-handles TikTok copyright/pre-check modal (`Tiếp tục đăng?` / `Post anyway`) by clicking `Đăng ngay` during `publish()` and `verifyPublished()`
 - CLI supports interactive `--pause` mode across TikTok (`tiktok:draft`, `tiktok:publish`, `tiktok:download`), YouTube (`upload:youtube`), and Facebook (`social:upload`)

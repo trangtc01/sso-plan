@@ -9,6 +9,7 @@
     "tiktok:draft": "tsx src/cli.ts draft",
     "tiktok:publish": "tsx src/cli.ts publish",
     "tiktok:download": "tsx src/cli.ts download",
+    "tiktok:trending-audio": "tsx src/trending-audio-cli.ts",
     "tiktok:bootstrap": "tsx src/cli.ts bootstrap",
     "facebook:upload": "tsx src/facebook/cli.ts",
     "facebook:draft": "tsx src/facebook/cli.ts",

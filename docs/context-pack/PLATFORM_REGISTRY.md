@@ -18,6 +18,7 @@ Queue:
 - `publish-tiktok` (job name `tiktok-publish`)
 
 - supports sound selection (`selectSound`) searching "Trending Tiktok" and selecting optimal trending audio track
+- standalone trending-audio CLI: `npm run tiktok:trending-audio -- --duration <seconds>` reads public TikTok Discover video candidates, resolves video `playCount` and sound metadata, requires sound duration >= target duration, deduplicates by `musicId`, downloads the selected audio and trims it with FFmpeg. Ranking is by the source video's TikTok view count; it is not a claim about total sound usage count. Supports `--pause` / `--step` / `-p` checkpoints.
 - **Per-Platform TikTok Source Configuration**: Supports `facebookUseTikTokSource` and `youtubeUseTikTokSource` flags to allow per-platform video source selection.
 - **TikTok-First Multiplatform Flow**: When TikTok is selected together with Facebook/YouTube:
   - TikTok publish mode MUST be `PUBLIC`.
