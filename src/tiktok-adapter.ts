@@ -138,8 +138,23 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
       return;
     }
 
+    // Click search box and search for "Trending Tiktok"
+    console.log("[TikTok Adapter] Searching for music search input...");
+    const searchInput = page.locator(
+      'input.TextInput__input[placeholder*="Tìm kiếm"], input.TextInput__input[placeholder*="Search"], input[placeholder*="Tìm kiếm âm thanh"], input.TextInput__input'
+    ).first();
+
+    if (await searchInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      console.log("[TikTok Adapter] Searching for 'Trending Tiktok'...");
+      await searchInput.click({ force: true }).catch(() => undefined);
+      await searchInput.fill("Trending Tiktok").catch(() => undefined);
+      await searchInput.press("Enter").catch(() => undefined);
+      await page.waitForTimeout(2_500);
+    } else {
+      console.warn("[TikTok Adapter] Music search input was not found or not visible.");
+    }
+
     // Wait until track titles are populated (not empty skeleton placeholders)
-    console.log("[TikTok Adapter] Waiting for music tracks text to populate...");
     console.log("[TikTok Adapter] Waiting for music tracks text to populate...");
     await page.waitForFunction(() => {
       const titles = document.querySelectorAll('.MusicPanelMusicItem__infoBasicTitle');

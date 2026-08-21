@@ -17,9 +17,8 @@ Key code:
 Queue:
 - `publish-tiktok` (job name `tiktok-publish`)
 
-Important:
-- Default `publishMode` remains `DRAFT` to avoid accidental public posting.
-- `PUBLIC` mode clicks Post/Publish and verifies `PUBLISHED` status.
+- supports sound selection (`selectSound`) searching "Trending Tiktok" and selecting optimal trending audio track
+- **Per-Platform TikTok Source Configuration**: Supports `facebookUseTikTokSource` and `youtubeUseTikTokSource` flags to allow per-platform video source selection.
 - **TikTok-First Multiplatform Flow**: When TikTok is selected together with Facebook/YouTube:
   - TikTok publish mode MUST be `PUBLIC`.
   - Downstream Facebook/YouTube jobs start in `WAITING_SOURCE` state.

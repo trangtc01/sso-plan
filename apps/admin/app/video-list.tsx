@@ -491,6 +491,10 @@ function DetailModal({
                   </div>
                 )}
 
+                {isFb && (job.status === "PUBLISHED" || job.status === "DRAFT_SAVED" || Boolean(job.response)) && (
+                  <FacebookPreview job={job} />
+                )}
+
                 {isYt && (
                   <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
                     <a
@@ -551,4 +555,50 @@ function label(platform: PublishJob["platform"]): string {
   if (platform === "FACEBOOK") return "Facebook";
   if (platform === "YOUTUBE") return "YouTube";
   return "TikTok";
+}
+
+function FacebookPreview({ job }: { job: PublishJob }) {
+  const response = asRecord(job.response);
+  const raw = asRecord(response?.raw);
+  const rawResp = asRecord(raw?.response);
+  const externalId =
+    (typeof response?.externalId === "string" && response.externalId) ||
+    (typeof rawResp?.id === "string" && rawResp.id) ||
+    (typeof raw?.id === "string" && raw.id) ||
+    undefined;
+
+  const permalinkUrl = typeof raw?.permalinkUrl === "string" && raw.permalinkUrl
+    ? raw.permalinkUrl
+    : externalId
+      ? `https://www.facebook.com/reel/${encodeURIComponent(externalId)}`
+      : undefined;
+  const thumbnailUrl = typeof raw?.thumbnailUrl === "string" ? raw.thumbnailUrl : undefined;
+
+  if (!permalinkUrl && !thumbnailUrl) return null;
+
+  return (
+    <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
+      <label style={{ fontSize: "11px", fontWeight: 700, color: "#1877f2", textTransform: "uppercase" }}>
+        Facebook Preview
+      </label>
+      {thumbnailUrl && (
+        <a href={permalinkUrl} target="_blank" rel="noreferrer" style={{ display: "block", marginTop: "8px" }}>
+          <img src={thumbnailUrl} alt="Facebook video preview"
+            style={{ display: "block", maxWidth: "320px", width: "100%", borderRadius: "10px", border: "1px solid #e2e8f0" }} />
+        </a>
+      )}
+      {permalinkUrl && (
+        <a href={permalinkUrl} target="_blank" rel="noreferrer" className="secondary-button"
+          style={{ display: "inline-block", marginTop: "10px", textDecoration: "none", color: "#1877f2", background: "#fff", borderColor: "#bfdbfe" }}>
+          Mở video Facebook trong trình duyệt ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }

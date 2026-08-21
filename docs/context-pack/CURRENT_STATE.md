@@ -16,15 +16,15 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - hashtags
 - multi-select Facebook / YouTube / TikTok with branded option cards
 - per-platform scheduling options:
-  - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`)
-  - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private)
-  - TikTok: Publish mode (`DRAFT` default / `PUBLIC` option), Sound option (`useSound: true/false`, `--no-sound` in CLI)
-- validation: When TikTok is selected with sound=true together with Facebook/YouTube, TikTok publish mode must be `PUBLIC`. If sound=false, original video is used downstream without requiring TikTok Public mode.
+  - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`), Nguồn video (`facebookUseTikTokSource: true/false`)
+  - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private), Nguồn video (`youtubeUseTikTokSource: true/false`)
+  - TikTok: Publish mode (`DRAFT` default / `PUBLIC` option), Sound option (`useSound: true/false`, `--no-sound` in CLI; automatically clicks search, types "Trending Tiktok" and selects optimal trending track)
+- validation: When Facebook or YouTube is configured with `useTikTokSource=true`, TikTok must be selected and TikTok publish mode must be `PUBLIC`. If `useTikTokSource=false`, the platform uses the original video file (`Video.sourcePath`).
 - datetime-local publish time
-- bulk TXT (tab-separated) and CSV import supporting extended columns (`tiktok_mode`, `tiktok_use_sound`, `facebook_mode`, `facebook_type`, `youtube_mode`)
+- bulk TXT (tab-separated) and CSV import supporting extended 13-column format (`video_path,title,description,hashtags,platforms,publish_at,tiktok_mode,tiktok_use_sound,facebook_mode,facebook_type,facebook_use_tiktok_source,youtube_mode,youtube_use_tiktok_source`)
 - video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`) and live status pulse indicators
 - line-clamped error text column formatting (`word-break: break-word; overflow-wrap: anywhere`) preventing table layout breakage
-- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, direct platform web links (TikTok Studio Drafts tab / YouTube Studio), embedded in-browser HTML5 video player via HTTP 206 video streaming (`GET /videos/:id/stream`), and clickable local file path link label
+- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, Facebook Preview (thumbnail + direct permalink url `https://www.facebook.com/watch/?v=...`), direct platform web links (TikTok Studio Drafts tab / YouTube Studio), embedded in-browser HTML5 video player via HTTP 206 video streaming (`GET /videos/:id/stream`), and clickable local file path link label
 - FFmpeg MP4 transcoding utility (`src/ffmpeg.ts`) ensuring all uploaded/staged non-MP4 videos (`.mov`, `.avi`, etc.) are automatically converted to standard H.264 / AAC MP4 format with faststart flags before social media distribution
 
 
@@ -32,8 +32,7 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
 - TikTok uses `UploadJob` with `publishTime`, `publishMode` (`DRAFT`/`PUBLIC`), and `useSound` (`Boolean`)
 - robust `parseBoolean` module (`apps/api/src/parse-boolean.ts`) used across DTO transformers and `VideosService.create` to ensure string/array values (e.g. `"false"`) sent via multipart form data evaluate properly as boolean `false` instead of truthy strings
-
-- Facebook/YouTube use `PublishJob` with `useTikTokSource` (`Boolean`) and `status: WAITING_SOURCE` when TikTok with sound is included (or `SCHEDULED` / `READY_TO_RUN` if TikTok is not selected or sound=false)
+- Facebook/YouTube use `PublishJob` with per-platform `useTikTokSource` (`Boolean`) and `status: WAITING_TIKTOK_SOURCE` when `useTikTokSource=true` (or `SCHEDULED` / `READY_TO_RUN` if `useTikTokSource=false`)
 - `PublishStatus.READY_TO_RUN` and `PublishStatus.DRAFT_SAVED` added to Prisma schema enum and migrations to support queue execution readiness and unified draft status reporting (`DRAFT_SAVED` for `DRAFT`/private mode across TikTok, Facebook, and YouTube; `PUBLISHED` for `PUBLIC` mode)
 - Modularized constants (`apps/api/src/constants.ts`) and types (`apps/api/src/types.ts`, `apps/admin/app/types.ts`) for strict type safety across NestJS API and Next.js Admin
 - `VideosService.create` enqueues all `PublishJob`s in `SCHEDULED` status directly into BullMQ (regardless of whether `tiktokJob` exists), and worker automatically recovers/enqueues any orphaned `SCHEDULED` jobs on startup

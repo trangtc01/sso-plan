@@ -19,7 +19,9 @@ export interface BulkImportRow {
   tiktokUseSound: boolean;
   facebookPublishMode?: PublishMode;
   facebookContentType?: FacebookContentType;
+  facebookUseTikTokSource: boolean;
   youtubePublishMode?: PublishMode;
+  youtubeUseTikTokSource: boolean;
 }
 
 export class BulkImportParseError extends Error {
@@ -79,9 +81,9 @@ export function parseBulkImportText(
       continue;
     }
 
-    if (!headerMap && (columns.length < 6 || columns.length > 11)) {
+    if (!headerMap && (columns.length < 6 || columns.length > 13)) {
       problems.push(
-        `Line ${lineNumber}: expected 6-11 ${format === "csv" ? "CSV" : "TAB-separated"} columns, got ${columns.length}`,
+        `Line ${lineNumber}: expected 6-13 ${format === "csv" ? "CSV" : "TAB-separated"} columns, got ${columns.length}`,
       );
       continue;
     }
@@ -120,7 +122,9 @@ export function parseBulkImportText(
         tiktokUseSound: parseBoolean(get("tiktok_use_sound", 7), true, "tiktok_use_sound"),
         facebookPublishMode: parseOptionalPublishMode(get("facebook_mode", 8), "facebook_mode"),
         facebookContentType: parseOptionalFacebookType(get("facebook_type", 9)),
-        youtubePublishMode: parseOptionalPublishMode(get("youtube_mode", 10), "youtube_mode"),
+        facebookUseTikTokSource: parseBoolean(get("facebook_use_tiktok_source", 10), false, "facebook_use_tiktok_source"),
+        youtubePublishMode: parseOptionalPublishMode(get("youtube_mode", 11), "youtube_mode"),
+        youtubeUseTikTokSource: parseBoolean(get("youtube_use_tiktok_source", 12), false, "youtube_use_tiktok_source"),
       });
     } catch (error) {
       problems.push(`Line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`);

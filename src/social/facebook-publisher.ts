@@ -27,6 +27,12 @@ interface VideoPostResponse {
   error?: unknown;
 }
 
+interface FacebookVideoInfo {
+  id?: string;
+  permalink_url?: string;
+  picture?: string;
+}
+
 export class FacebookReelsPublisher {
   constructor(private readonly config: FacebookConfig) {}
 
@@ -71,11 +77,20 @@ export class FacebookReelsPublisher {
       throw new Error(`Facebook finish/publish failed: ${safeJson(finished)}`);
     }
 
+    const publishedInfo = videoState === "PUBLISHED"
+      ? await this.getVideoInfo(started.video_id).catch(() => undefined)
+      : undefined;
+
     return {
       platform: "facebook",
       externalId: started.video_id,
       state: videoState,
-      raw: { ...finished, contentType: "REEL" },
+      raw: {
+        ...finished,
+        contentType: "REEL",
+        permalinkUrl: publishedInfo?.permalink_url,
+        thumbnailUrl: publishedInfo?.picture,
+      },
     };
   }
 
@@ -107,6 +122,10 @@ export class FacebookReelsPublisher {
       throw new Error(`Facebook video post upload failed (${response.status}): ${safeJson(parsed ?? text)}`);
     }
 
+    const publishedInfo = videoState === "PUBLISHED"
+      ? await this.getVideoInfo(parsed.id).catch(() => undefined)
+      : undefined;
+
     return {
       platform: "facebook",
       externalId: parsed.id,
@@ -115,8 +134,26 @@ export class FacebookReelsPublisher {
         contentType: "VIDEO_POST",
         published: videoState === "PUBLISHED",
         response: parsed,
+        permalinkUrl: publishedInfo?.permalink_url,
+        thumbnailUrl: publishedInfo?.picture,
       },
     };
+  }
+
+  private async getVideoInfo(videoId: string): Promise<FacebookVideoInfo> {
+    const url = new URL(
+      `https://graph.facebook.com/${this.config.graphVersion}/${encodeURIComponent(videoId)}`,
+    );
+    url.searchParams.set("access_token", this.config.pageAccessToken);
+    url.searchParams.set("fields", "id,permalink_url,picture");
+
+    const response = await fetch(url);
+    const text = await response.text();
+    const parsed = parseJson(text);
+    if (!response.ok) {
+      throw new Error(`Facebook video info lookup failed (${response.status}): ${safeJson(parsed ?? text)}`);
+    }
+    return (parsed ?? {}) as FacebookVideoInfo;
   }
 
   private async graphPost<T>(path: string, params: Record<string, string | undefined>): Promise<T> {

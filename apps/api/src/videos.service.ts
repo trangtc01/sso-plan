@@ -63,17 +63,25 @@ export class VideosService {
     const hasTikTok = platforms.includes(Platform.TIKTOK);
     const hasDownstream = platforms.some(platform => platform !== Platform.TIKTOK);
     const tiktokUseSound = parseBoolean(input.tiktokUseSound, true);
+    const facebookUseTikTokSource =
+      platforms.includes(Platform.FACEBOOK) &&
+      parseBoolean(input.facebookUseTikTokSource, false);
+    const youtubeUseTikTokSource =
+      platforms.includes(Platform.YOUTUBE) &&
+      parseBoolean(input.youtubeUseTikTokSource, false);
+    const needsTikTokSource = facebookUseTikTokSource || youtubeUseTikTokSource;
     const tiktokPublishMode = input.tiktokPublishMode
-      ?? (hasTikTok && hasDownstream && tiktokUseSound ? PublishMode.PUBLIC : PublishMode.DRAFT);
+      ?? (needsTikTokSource ? PublishMode.PUBLIC : PublishMode.DRAFT);
 
-    if (
-      hasTikTok &&
-      hasDownstream &&
-      tiktokUseSound &&
-      tiktokPublishMode !== PublishMode.PUBLIC
-    ) {
+    if (needsTikTokSource && !hasTikTok) {
       throw new BadRequestException(
-        "TikTok must be PUBLIC when TikTok sound is enabled with Facebook/YouTube because downstream platforms use the downloaded TikTok version. Disable TikTok sound to use the original video downstream.",
+        "Facebook/YouTube can only use the TikTok video source when TikTok is also selected.",
+      );
+    }
+
+    if (needsTikTokSource && tiktokPublishMode !== PublishMode.PUBLIC) {
+      throw new BadRequestException(
+        "TikTok must be PUBLIC when Facebook or YouTube is configured to use the TikTok video source.",
       );
     }
 
@@ -109,6 +117,9 @@ export class VideosService {
         const publishMode = platform === Platform.FACEBOOK
           ? input.facebookPublishMode ?? PublishMode.PUBLIC
           : input.youtubePublishMode ?? PublishMode.PUBLIC;
+        const useTikTokSource = platform === Platform.FACEBOOK
+          ? facebookUseTikTokSource
+          : youtubeUseTikTokSource;
 
         publishJobs.push(await tx.publishJob.create({
           data: {
@@ -118,9 +129,11 @@ export class VideosService {
             facebookContentType: platform === Platform.FACEBOOK
               ? input.facebookContentType ?? FacebookContentType.REEL
               : null,
-            useTikTokSource: hasTikTok && tiktokUseSound,
+            useTikTokSource,
             publishTime,
-            status: (hasTikTok && tiktokUseSound) ? PublishStatus.WAITING_TIKTOK_SOURCE : PublishStatus.SCHEDULED,
+            status: useTikTokSource
+              ? PublishStatus.WAITING_TIKTOK_SOURCE
+              : PublishStatus.SCHEDULED,
           },
         }));
       }
@@ -180,7 +193,9 @@ export class VideosService {
           tiktokUseSound: row.tiktokUseSound,
           facebookPublishMode: row.facebookPublishMode,
           facebookContentType: row.facebookContentType,
+          facebookUseTikTokSource: row.facebookUseTikTokSource,
           youtubePublishMode: row.youtubePublishMode,
+          youtubeUseTikTokSource: row.youtubeUseTikTokSource,
         });
         items.push({ line: row.line, ok: true, videoId: created.video.id });
       } catch (error) {
@@ -268,6 +283,8 @@ export class VideosService {
     let targetUrl = "";
     let userDataDir = "";
 
+    const filePath = video.outputPath || video.sourcePath;
+
     if (mode === "tiktok") {
       targetUrl = video.tiktokPublishedUrl || "https://www.tiktok.com/tiktokstudio/upload";
       userDataDir = path.resolve(process.env.TIKTOK_PROFILE_DIR ?? "./.tiktok-automation/profile");
@@ -275,7 +292,6 @@ export class VideosService {
       targetUrl = process.env.YOUTUBE_PREVIEW_URL || "https://studio.youtube.com";
       userDataDir = path.resolve(process.env.YOUTUBE_PROFILE_DIR ?? "./.social-automation/youtube-profile");
     } else {
-      const filePath = video.outputPath || video.sourcePath;
       if (!filePath) throw new BadRequestException("No valid video file path found for preview");
       targetUrl = `file://${path.resolve(filePath)}`;
     }

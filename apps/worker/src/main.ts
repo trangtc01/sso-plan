@@ -86,17 +86,9 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
 
   if (!downstreamJobs.length) return;
 
-  if (!job.useSound) {
-    console.log(
-      `[TikTok Worker] useSound=false; skipping TikTok download and releasing ${downstreamJobs.length} downstream job(s) with original source`,
-    );
-    await releaseDownstream(downstreamJobs);
-    return;
-  }
-
   if (job.publishMode !== PublishMode.PUBLIC) {
     const errorMessage =
-      "TikTok sound is enabled for downstream platforms, but TikTok is not PUBLIC; a published TikTok URL is required for the current sound-preserving download flow.";
+      "One or more downstream platforms require the TikTok video source, but TikTok is not PUBLIC; a published TikTok URL is required.";
     await prisma.uploadJob.update({ where: { id: job.id }, data: { errorMessage } });
     await failWaitingDownstream(job.videoId, errorMessage);
     return;

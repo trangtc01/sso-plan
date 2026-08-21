@@ -11,7 +11,9 @@ export interface CreateVideoInput {
   publishAt?: string;
   facebookPublishMode?: PublishMode;
   facebookContentType?: FacebookContentType;
+  facebookUseTikTokSource?: boolean | string;
   youtubePublishMode?: PublishMode;
+  youtubeUseTikTokSource?: boolean | string;
   tiktokPublishMode?: PublishMode;
   tiktokUseSound?: boolean | string;
 }

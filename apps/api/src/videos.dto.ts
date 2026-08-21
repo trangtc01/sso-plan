@@ -40,8 +40,18 @@ export class CreateVideoDto {
   facebookContentType: FacebookContentType = FacebookContentType.REEL;
 
   @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, false))
+  @IsBoolean()
+  facebookUseTikTokSource = false;
+
+  @IsOptional()
   @IsEnum(PublishMode)
   youtubePublishMode: PublishMode = PublishMode.PUBLIC;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, false))
+  @IsBoolean()
+  youtubeUseTikTokSource = false;
 
   @IsOptional()
   @IsEnum(PublishMode)

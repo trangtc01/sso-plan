@@ -45,7 +45,8 @@ Use this authority order when resolving conflicts:
 6. Keep changes minimal and scoped. Do not overwrite unrelated local changes.
 7. Never use `git add .` or `git add -A` when a task has a narrow file scope.
 8. Do not commit credentials, browser profiles, cookies, access tokens, generated artifacts, test media, raw delivery `.zip` files, or temporary extracted patch folders (e.g., `*.zip`, `sso-plan-*-patch/`).
-9. When delivering code updates externally or ingesting packages, follow the **Code Delivery & Packaging Protocol (Zip & File Mapping)** below.
+9. Never execute `git commit` or `git push` autonomously. Agents are strictly allowed to commit or push code ONLY when explicitly instructed by the user.
+10. When delivering code updates externally or ingesting packages, follow the **Code Delivery & Packaging Protocol (Zip & File Mapping)** below.
 
 ## Code Delivery & Packaging Protocol (Zip & File Mapping)
 

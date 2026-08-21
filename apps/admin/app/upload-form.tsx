@@ -39,8 +39,10 @@ export function UploadForm() {
   const [tiktokPublishMode, setTiktokPublishMode] = useState<"DRAFT" | "PUBLIC">("DRAFT");
   const [tiktokUseSound, setTiktokUseSound] = useState(true);
   const [youtubePublishMode, setYoutubePublishMode] = useState<"PUBLIC" | "DRAFT">("PUBLIC");
+  const [youtubeUseTikTokSource, setYoutubeUseTikTokSource] = useState(false);
   const [facebookPublishMode, setFacebookPublishMode] = useState<"PUBLIC" | "DRAFT">("PUBLIC");
   const [facebookContentType, setFacebookContentType] = useState<"REEL" | "VIDEO_POST">("REEL");
+  const [facebookUseTikTokSource, setFacebookUseTikTokSource] = useState(false);
 
   const defaultPublishAt = useMemo(
     () => toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000)),
@@ -49,7 +51,9 @@ export function UploadForm() {
 
   const hasTikTok = platforms.includes("TIKTOK");
   const hasDownstream = platforms.some(platform => platform !== "TIKTOK");
-  const requiresTikTokDownloadedSource = hasTikTok && hasDownstream && tiktokUseSound;
+  const requiresTikTokDownloadedSource =
+    (platforms.includes("YOUTUBE") && youtubeUseTikTokSource) ||
+    (platforms.includes("FACEBOOK") && facebookUseTikTokSource);
 
   function togglePlatform(platform: string, checked: boolean) {
     setPlatforms(current => {
@@ -59,11 +63,18 @@ export function UploadForm() {
 
       const nextHasTikTok = next.includes("TIKTOK");
       const nextHasDownstream = next.some(item => item !== "TIKTOK");
-      if (nextHasTikTok && nextHasDownstream && tiktokUseSound) {
+      if (nextHasTikTok && nextHasDownstream && (youtubeUseTikTokSource || facebookUseTikTokSource)) {
         setTiktokPublishMode("PUBLIC");
       }
       return next;
     });
+  }
+
+  function requireTikTokSource(platform: "YOUTUBE" | "FACEBOOK") {
+    setPlatforms(current => current.includes("TIKTOK") ? current : [...current, "TIKTOK"]);
+    setTiktokPublishMode("PUBLIC");
+    if (platform === "YOUTUBE") setYoutubeUseTikTokSource(true);
+    else setFacebookUseTikTokSource(true);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -78,7 +89,7 @@ export function UploadForm() {
     if (requiresTikTokDownloadedSource && tiktokPublishMode !== "PUBLIC") {
       setMessageType("error");
       setMessage(
-        "Khi TikTok có lấy nhạc và còn đăng Facebook/YouTube, TikTok phải là Public để hệ thống tải lại bản đã có nhạc. Hoặc chọn “Không lấy nhạc” để các nền tảng khác dùng video gốc.",
+        "Facebook/YouTube đang chọn dùng bản video từ TikTok, vì vậy TikTok phải là Public để hệ thống tải lại video.",
       );
       return;
     }
@@ -103,10 +114,14 @@ export function UploadForm() {
     form.set("publishAt", publishAt.toISOString());
     form.set("tiktokPublishMode", tiktokPublishMode);
     form.set("tiktokUseSound", String(tiktokUseSound));
-    if (platforms.includes("YOUTUBE")) form.set("youtubePublishMode", youtubePublishMode);
+    if (platforms.includes("YOUTUBE")) {
+      form.set("youtubePublishMode", youtubePublishMode);
+      form.set("youtubeUseTikTokSource", String(youtubeUseTikTokSource));
+    }
     if (platforms.includes("FACEBOOK")) {
       form.set("facebookPublishMode", facebookPublishMode);
       form.set("facebookContentType", facebookContentType);
+      form.set("facebookUseTikTokSource", String(facebookUseTikTokSource));
     }
 
     try {
@@ -119,9 +134,12 @@ export function UploadForm() {
       setTiktokPublishMode("DRAFT");
       setTiktokUseSound(true);
       setYoutubePublishMode("PUBLIC");
+      setYoutubeUseTikTokSource(false);
       setFacebookPublishMode("PUBLIC");
       setFacebookContentType("REEL");
+      setFacebookUseTikTokSource(false);
       setMessageType("success");
+      setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
       setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
     } catch (error) {
       setMessageType("error");
@@ -263,22 +281,9 @@ export function UploadForm() {
               </div>
 
               <div className={`flow-note ${tiktokUseSound ? "flow-note-accent" : ""}`}>
-                {hasDownstream ? (
-                  tiktokUseSound ? (
-                    <>
-                      💡 <strong>Pipeline:</strong> TikTok Public → thêm nhạc → tải lại video hoàn chỉnh → FB/YT dùng bản đã tải.
-                    </>
-                  ) : (
-                    <>
-                      ℹ️ <strong>Pipeline:</strong> TikTok chạy trước → không chọn nhạc → FB/YT dùng thẳng video gốc.
-                    </>
-                  )
-                ) : (
-                  <>
-                    ℹ️ <strong>TikTok only:</strong>{" "}
-                    {tiktokUseSound ? "Thử chọn nhạc trending trên TikTok." : "Đăng video mà không thêm nhạc TikTok."}
-                  </>
-                )}
+                ℹ️ <strong>TikTok:</strong>{" "}
+                {tiktokUseSound ? "Có thêm nhạc TikTok." : "Không thêm nhạc TikTok."}{" "}
+                Nguồn video của Facebook/YouTube được chọn riêng trong từng platform.
               </div>
             </fieldset>
           )}
@@ -286,29 +291,57 @@ export function UploadForm() {
           {platforms.includes("YOUTUBE") && (
             <fieldset className="platform-settings">
               <legend>YouTube Config</legend>
-              <div className="field">
-                <span>Chế độ đăng</span>
-                <div className="radio-group">
-                  <label className={`radio-option ${youtubePublishMode === "PUBLIC" ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="youtubePublishMode"
-                      value="PUBLIC"
-                      checked={youtubePublishMode === "PUBLIC"}
-                      onChange={() => setYoutubePublishMode("PUBLIC")}
-                    />
-                    <span>Public</span>
-                  </label>
-                  <label className={`radio-option ${youtubePublishMode === "DRAFT" ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="youtubePublishMode"
-                      value="DRAFT"
-                      checked={youtubePublishMode === "DRAFT"}
-                      onChange={() => setYoutubePublishMode("DRAFT")}
-                    />
-                    <span>Private (Riêng tư)</span>
-                  </label>
+              <div className="settings-grid">
+                <div className="field">
+                  <span>Chế độ đăng</span>
+                  <div className="radio-group">
+                    <label className={`radio-option ${youtubePublishMode === "PUBLIC" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="youtubePublishMode"
+                        value="PUBLIC"
+                        checked={youtubePublishMode === "PUBLIC"}
+                        onChange={() => setYoutubePublishMode("PUBLIC")}
+                      />
+                      <span>Public</span>
+                    </label>
+                    <label className={`radio-option ${youtubePublishMode === "DRAFT" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="youtubePublishMode"
+                        value="DRAFT"
+                        checked={youtubePublishMode === "DRAFT"}
+                        onChange={() => setYoutubePublishMode("DRAFT")}
+                      />
+                      <span>Private (Riêng tư)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <span>Nguồn video</span>
+                  <div className="radio-group">
+                    <label className={`radio-option ${!youtubeUseTikTokSource ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="youtubeUseTikTokSource"
+                        value="false"
+                        checked={!youtubeUseTikTokSource}
+                        onChange={() => setYoutubeUseTikTokSource(false)}
+                      />
+                      <span>Video gốc</span>
+                    </label>
+                    <label className={`radio-option ${youtubeUseTikTokSource ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="youtubeUseTikTokSource"
+                        value="true"
+                        checked={youtubeUseTikTokSource}
+                        onChange={() => requireTikTokSource("YOUTUBE")}
+                      />
+                      <span>Video từ TikTok</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </fieldset>
@@ -366,6 +399,32 @@ export function UploadForm() {
                         onChange={() => setFacebookContentType("VIDEO_POST")}
                       />
                       <span>Video Feed</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <span>Nguồn video</span>
+                  <div className="radio-group">
+                    <label className={`radio-option ${!facebookUseTikTokSource ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookUseTikTokSource"
+                        value="false"
+                        checked={!facebookUseTikTokSource}
+                        onChange={() => setFacebookUseTikTokSource(false)}
+                      />
+                      <span>Video gốc</span>
+                    </label>
+                    <label className={`radio-option ${facebookUseTikTokSource ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookUseTikTokSource"
+                        value="true"
+                        checked={facebookUseTikTokSource}
+                        onChange={() => requireTikTokSource("FACEBOOK")}
+                      />
+                      <span>Video từ TikTok</span>
                     </label>
                   </div>
                 </div>

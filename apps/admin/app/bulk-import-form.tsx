@@ -39,7 +39,7 @@ export function BulkImportForm() {
         <span className="eyebrow">HÀNG LOẠT</span>
         <h2>Bulk Import TXT / CSV</h2>
         <p className="section-description">
-          Tải lên danh sách hàng chục video cùng lúc với định dạng bảng chuẩn 6 hoặc 11 cột.
+          Tải lên danh sách hàng chục video cùng lúc với định dạng bảng chuẩn 6 hoặc 13 cột.
         </p>
       </div>
 
@@ -62,8 +62,8 @@ export function BulkImportForm() {
         </div>
 
         <div className="format-block">
-          <strong>5 cột mở rộng (Tùy chọn)</strong>
-          <code>tiktok_mode · tiktok_use_sound · facebook_mode · facebook_type · youtube_mode</code>
+          <strong>7 cột mở rộng (Tùy chọn)</strong>
+          <code>tiktok_mode · tiktok_use_sound · facebook_mode · facebook_type · facebook_use_tiktok_source · youtube_mode · youtube_use_tiktok_source</code>
         </div>
 
         <div className="format-notes">
@@ -72,7 +72,9 @@ export function BulkImportForm() {
           <span><b>tiktok_use_sound:</b> true | false</span>
           <span><b>facebook_mode:</b> DRAFT | PUBLIC</span>
           <span><b>facebook_type:</b> REEL | VIDEO_POST</span>
+          <span><b>facebook_use_tiktok_source:</b> true | false</span>
           <span><b>youtube_mode:</b> DRAFT | PUBLIC</span>
+          <span><b>youtube_use_tiktok_source:</b> true | false</span>
           <span><b>publish_at:</b> 2026-08-21 09:00</span>
         </div>
 
