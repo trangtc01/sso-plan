@@ -318,14 +318,34 @@ function DetailModal({
             </div>
 
             <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-color)" }}>
-              <button
-                className="secondary-button"
-                style={{ background: "#ffffff", color: "#4f46e5", borderColor: "#c7d2fe", fontWeight: 700 }}
-                onClick={() => onPreviewPlaywright(video.id, "file")}
-                disabled={previewing}
-              >
-                ▶️ Preview File Video Gốc (Playwright)
-              </button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "12px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>
+                  🎬 Xem Trực Tiếp Video Gốc / Output (Trình Duyệt)
+                </label>
+                {(video.outputPath || video.sourcePath) && (
+                  <a
+                    href={`${api}/videos/${video.id}/stream`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: "12px", color: "#4f46e5", fontWeight: 600, wordBreak: "break-all" }}
+                    title={`Stream API: ${api}/videos/${video.id}/stream`}
+                  >
+                    📁 {video.outputPath || video.sourcePath}
+                  </a>
+                )}
+              </div>
+              <video
+                src={`${api}/videos/${video.id}/stream`}
+                controls
+                preload="metadata"
+                style={{
+                  width: "100%",
+                  maxHeight: "320px",
+                  borderRadius: "12px",
+                  background: "#000000",
+                  display: "block",
+                }}
+              />
             </div>
           </div>
 
@@ -375,26 +395,15 @@ function DetailModal({
               )}
 
               <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e2e8f0", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                {video.tiktokPublishedUrl && (
-                  <a
-                    href={video.tiktokPublishedUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="primary-button"
-                    style={{ textDecoration: "none", fontSize: "13px" }}
-                  >
-                    🌐 Mở Web TikTok Online
-                  </a>
-                )}
-
-                <button
+                <a
+                  href={video.tiktokPublishedUrl || "https://www.tiktok.com/tiktokstudio/content?tab=draft"}
+                  target="_blank"
+                  rel="noreferrer"
                   className="secondary-button"
-                  style={{ background: "#ffffff", color: "#0f172a", borderColor: "#cbd5e1", fontWeight: 700 }}
-                  onClick={() => onPreviewPlaywright(video.id, "tiktok")}
-                  disabled={previewing}
+                  style={{ background: "#ffffff", color: "#0f172a", borderColor: "#cbd5e1", fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
                 >
-                  🎵 Preview TikTok (Playwright Profile)
-                </button>
+                  🎵 Mở Web TikTok {video.tiktokPublishedUrl ? "(Video Online)" : "Drafts Studio"} (Trình Duyệt)
+                </a>
               </div>
             </div>
           )}
@@ -484,14 +493,15 @@ function DetailModal({
 
                 {isYt && (
                   <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                    <button
+                    <a
+                      href="https://studio.youtube.com"
+                      target="_blank"
+                      rel="noreferrer"
                       className="secondary-button"
-                      style={{ background: "#ffffff", color: "#dc2626", borderColor: "#fca5a5", fontWeight: 700 }}
-                      onClick={() => onPreviewPlaywright(video.id, "youtube")}
-                      disabled={previewing}
+                      style={{ background: "#ffffff", color: "#dc2626", borderColor: "#fca5a5", fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
                     >
-                      🔴 Preview YouTube Studio (Playwright Profile)
-                    </button>
+                      🔴 Mở YouTube Studio (Trình Duyệt)
+                    </a>
                   </div>
                 )}
               </div>

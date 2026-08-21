@@ -295,6 +295,20 @@ export class VideosService {
       }
 
       const page = context.pages()[0] || await context.newPage();
+      if (mode === "file" || !userDataDir) {
+        const absolutePath = path.resolve(filePath);
+        const fileUrl = `file://${absolutePath}`;
+        const html = `<!DOCTYPE html>
+<html>
+<head><title>Preview Video - SSO Plan</title></head>
+<body style="margin:0; background:#0f172a; display:flex; align-items:center; justify-content:center; height:100vh;">
+  <video src="${fileUrl}" controls autoplay style="max-width:95vw; max-height:95vh; border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);"></video>
+</body>
+</html>`;
+        await page.setContent(html);
+        return { ok: true, platform: mode, targetUrl: fileUrl };
+      }
+
       await page.goto(targetUrl);
       return { ok: true, platform: mode, targetUrl };
     } catch (error) {

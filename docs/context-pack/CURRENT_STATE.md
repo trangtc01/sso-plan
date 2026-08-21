@@ -24,7 +24,7 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - bulk TXT (tab-separated) and CSV import supporting extended columns (`tiktok_mode`, `tiktok_use_sound`, `facebook_mode`, `facebook_type`, `youtube_mode`)
 - video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`) and live status pulse indicators
 - line-clamped error text column formatting (`word-break: break-word; overflow-wrap: anywhere`) preventing table layout breakage
-- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, direct web links, and interactive Playwright video preview trigger (`POST /videos/:id/preview-playwright`)
+- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, direct platform web links (TikTok Studio Drafts tab / YouTube Studio), embedded in-browser HTML5 video player via HTTP 206 video streaming (`GET /videos/:id/stream`), and clickable local file path link label
 - FFmpeg MP4 transcoding utility (`src/ffmpeg.ts`) ensuring all uploaded/staged non-MP4 videos (`.mov`, `.avi`, etc.) are automatically converted to standard H.264 / AAC MP4 format with faststart flags before social media distribution
 
 
@@ -34,7 +34,7 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - robust `parseBoolean` module (`apps/api/src/parse-boolean.ts`) used across DTO transformers and `VideosService.create` to ensure string/array values (e.g. `"false"`) sent via multipart form data evaluate properly as boolean `false` instead of truthy strings
 
 - Facebook/YouTube use `PublishJob` with `useTikTokSource` (`Boolean`) and `status: WAITING_SOURCE` when TikTok with sound is included (or `SCHEDULED` / `READY_TO_RUN` if TikTok is not selected or sound=false)
-- `PublishStatus.READY_TO_RUN` added to Prisma schema enum and migration to support queue execution readiness states
+- `PublishStatus.READY_TO_RUN` and `PublishStatus.DRAFT_SAVED` added to Prisma schema enum and migrations to support queue execution readiness and unified draft status reporting (`DRAFT_SAVED` for `DRAFT`/private mode across TikTok, Facebook, and YouTube; `PUBLISHED` for `PUBLIC` mode)
 - Modularized constants (`apps/api/src/constants.ts`) and types (`apps/api/src/types.ts`, `apps/admin/app/types.ts`) for strict type safety across NestJS API and Next.js Admin
 - `VideosService.create` enqueues all `PublishJob`s in `SCHEDULED` status directly into BullMQ (regardless of whether `tiktokJob` exists), and worker automatically recovers/enqueues any orphaned `SCHEDULED` jobs on startup
 - when TikTok with sound is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded

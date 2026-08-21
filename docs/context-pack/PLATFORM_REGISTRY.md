@@ -75,7 +75,7 @@ Important:
 - 12-stage timestamped debug logs (`[Step 1/12]` to `[Step 12/12]`) track every operation: CDP launch, Studio navigation, Auth check, Upload dialog, File attachment, Metadata filling, URL extraction, Wizard navigation, Privacy selection, Publish button click, and Completion confirmation.
 - Dedicated profile directory (`./.social-automation/youtube-profile` or `~/.sso-plan/youtube-profile`) must be used instead of the system Chrome directory to prevent `SingletonLock` collisions.
 
-Current scheduled worker supports `PUBLIC` / `DRAFT` (mapped to YouTube `private`) and `YOUTUBE_DEFAULT_MADE_FOR_KIDS`.
+Current scheduled worker supports `PUBLIC` / `DRAFT` (mapped to YouTube `private`) and `YOUTUBE_DEFAULT_MADE_FOR_KIDS`. Upon completion, jobs with `publishMode === DRAFT` (or YouTube private) set job status to `DRAFT_SAVED`, matching TikTok draft behavior, while `PUBLIC` jobs set status to `PUBLISHED`.
 
 ## Queue names
 

@@ -4,16 +4,20 @@ import {
   Controller,
   Get,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
+  Req,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
 import { VideoStatus } from "@prisma/client";
 import { FileInterceptor } from "@nestjs/platform-express";
+import type { Request, Response } from "express";
 import { diskStorage, memoryStorage } from "multer";
-import { mkdirSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { CreateVideoDto, RerunDto } from "./videos.dto.js";
 import { VideosService } from "./videos.service.js";
@@ -32,6 +36,43 @@ export class VideosController {
     @Query("status") status?: VideoStatus,
   ) {
     return this.videos.list(Number(page ?? 1), Number(perPage ?? 20), status);
+  }
+
+  @Get(":id/stream")
+  async stream(@Param("id") id: string, @Req() req: Request, @Res() res: Response) {
+    const video = await this.videos.detail(id);
+    const filePath = video.outputPath || video.sourcePath;
+    if (!filePath || !existsSync(filePath)) {
+      throw new NotFoundException("Video file not found");
+    }
+
+    const stat = statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    const extension = path.extname(filePath).toLowerCase();
+    const contentType = extension === ".mov" ? "video/quicktime" : "video/mp4";
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const file = createReadStream(filePath, { start, end });
+
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": contentType,
+      });
+      file.pipe(res);
+    } else {
+      res.writeHead(200, {
+        "Content-Length": fileSize,
+        "Content-Type": contentType,
+      });
+      createReadStream(filePath).pipe(res);
+    }
   }
 
   @Get(":id")

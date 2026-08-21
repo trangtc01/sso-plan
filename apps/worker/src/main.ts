@@ -178,7 +178,7 @@ const facebookWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.faceb
       tags: job.video.hashtags,
     }, videoState, contentType);
 
-    await markPublished(job.id, result.externalId, result.raw);
+    await markPublished(job.id, result.externalId, result.raw, job.publishMode);
   } catch (error) {
     await markPublishFailed(job.id, error);
     throw error;
@@ -201,7 +201,7 @@ const youtubeWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.youtub
       madeForKids: (process.env.YOUTUBE_DEFAULT_MADE_FOR_KIDS ?? "false").toLowerCase() === "true",
     });
 
-    await markPublished(job.id, result.externalId, result.raw);
+    await markPublished(job.id, result.externalId, result.raw, job.publishMode);
   } catch (error) {
     await markPublishFailed(job.id, error);
     throw error;
@@ -381,11 +381,19 @@ async function markPublishing(jobId: string) {
   });
 }
 
-async function markPublished(jobId: string, externalId: string, raw: unknown) {
+async function markPublished(
+  jobId: string,
+  externalId: string,
+  raw: unknown,
+  publishMode?: PublishMode,
+) {
+  const status = publishMode === PublishMode.DRAFT
+    ? PublishStatus.DRAFT_SAVED
+    : PublishStatus.PUBLISHED;
   await prisma.publishJob.update({
     where: { id: jobId },
     data: {
-      status: PublishStatus.PUBLISHED,
+      status,
       finishedAt: new Date(),
       response: { externalId, raw } as Prisma.InputJsonValue,
     },

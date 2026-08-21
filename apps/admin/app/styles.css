@@ -892,12 +892,14 @@ small, .muted {
   background: #22c55e;
 }
 
-.status-draft {
+.status-draft,
+.status-draft-saved {
   background: #f1f5f9;
   color: #475569;
   border-color: #cbd5e1;
 }
-.status-draft::before {
+.status-draft::before,
+.status-draft-saved::before {
   background: #64748b;
 }
 
