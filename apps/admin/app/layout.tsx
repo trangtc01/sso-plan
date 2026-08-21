@@ -5,6 +5,11 @@ export const metadata = {
   description: "TikTok, YouTube and Facebook social video scheduler",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
