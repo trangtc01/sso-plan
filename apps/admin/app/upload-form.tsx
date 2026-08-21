@@ -138,7 +138,7 @@ export function UploadForm() {
         <div className="form-col-left">
           <label className="field">
             <span>Tiêu đề video</span>
-            <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
+            <input type="text" name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
           </label>
 
           <label className="field">
@@ -149,6 +149,7 @@ export function UploadForm() {
           <label className="field">
             <span>Hashtags</span>
             <input
+              type="text"
               name="hashtagsText"
               placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh"
             />
