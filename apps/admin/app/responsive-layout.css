@@ -2,26 +2,24 @@
  * Responsive layout overrides for the Social Video Scheduler admin.
  *
  * Goals:
- * - Use laptop/desktop width efficiently instead of leaving large empty gutters.
- * - Keep Upload Video as the primary full-width workflow.
- * - Stack Bulk Import below the upload workflow.
- * - Preserve the existing Claymorphism design system from styles.css.
- * - Keep the monitoring table full width with safe horizontal scrolling.
+ * - Desktop (>= 1024px): 2-column side-by-side dashboard (Upload Form on left, Bulk Import on right).
+ * - Mobile/Tablet (< 1024px): Stacked single column layout.
+ * - Full-width monitoring table below.
  */
 
-/* Laptop/Desktop container: use nearly the full viewport while keeping safe gutters. */
+/* Container: fill width comfortably with safe gutters */
 main {
-  width: min(1720px, calc(100% - 48px));
-  margin: 24px auto 64px;
+  width: min(1560px, calc(100% - 48px));
+  margin: 28px auto 70px;
 }
 
-/* Upload and Bulk Import are intentionally stacked.
- * Upload contains its own two-column form and needs the full content width.
- */
+/* Desktop 2-column side-by-side grid */
 .dashboard-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 24px;
-  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  gap: 28px;
+  align-items: start;
+  margin-bottom: 28px;
 }
 
 .upload-card,
@@ -31,96 +29,46 @@ main {
   min-width: 0;
 }
 
-/* Keep the primary form roomy on common 13/14/16-inch laptops. */
+/* Form inside Upload card */
 .upload-card .form-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: clamp(18px, 2vw, 30px);
-  row-gap: 22px;
+  gap: 20px;
 }
 
-/* Three platform selectors should make use of the available horizontal space. */
 .upload-card .platform-grid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-/* Platform setting controls remain two-column while there is enough space. */
 .upload-card .settings-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
-/* Bulk import is secondary: compact top area, guide expands only when requested. */
-.import-card .import-form {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 18px;
-}
-
-.import-card .import-form .primary-button {
-  min-width: 250px;
-}
-
-/* Avoid extra top whitespace before the full-width monitoring section. */
-.videos-card {
-  margin-top: 0;
-}
-
-/* Wide desktop. */
+/* Wide desktop */
 @media (min-width: 1600px) {
   main {
-    width: min(1720px, calc(100% - 64px));
-    margin-top: 28px;
-  }
-
-  .hero,
-  .card {
-    padding-left: 40px;
-    padding-right: 40px;
+    width: min(1600px, calc(100% - 64px));
   }
 }
 
-/* Typical MacBook / laptop widths. */
-@media (max-width: 1280px) {
+/* Tablet landscape & smaller screens: stack dashboard to 1 column */
+@media (max-width: 1024px) {
   main {
     width: calc(100% - 32px);
     margin: 20px auto 56px;
   }
 
-  .hero {
-    padding: 28px 30px;
-  }
-
-  .card {
-    padding: 30px;
-  }
-}
-
-/* Tablet landscape / smaller laptop.
- * Keep forms two-column until space becomes genuinely constrained.
- */
-@media (max-width: 960px) {
-  main {
-    width: calc(100% - 28px);
-  }
-
-  .hero-header-row {
-    align-items: flex-start;
-  }
-
-  .hero-stats-row {
-    width: 100%;
-  }
-
-  .import-card .import-form {
+  .dashboard-grid {
     grid-template-columns: 1fr;
-  }
-
-  .import-card .import-form .primary-button {
-    width: 100%;
-    min-width: 0;
+    gap: 24px;
   }
 }
 
-/* Tablet / mobile: collapse dense form sections to one column. */
+/* Tablet portrait */
 @media (max-width: 768px) {
   main {
     width: calc(100% - 24px);
@@ -129,16 +77,10 @@ main {
 
   .hero {
     padding: 22px 20px;
-    margin-bottom: 18px;
   }
 
   .card {
     padding: 22px 18px;
-  }
-
-  .dashboard-grid {
-    gap: 18px;
-    margin-bottom: 18px;
   }
 
   .upload-card .form-grid,
@@ -147,7 +89,7 @@ main {
   }
 
   .upload-card .platform-grid {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 
   .form-actions {
@@ -157,42 +99,23 @@ main {
   .form-actions .primary-button {
     width: 100%;
   }
-
-  .table-scroll {
-    -webkit-overflow-scrolling: touch;
-  }
 }
 
-/* Small phones. */
+/* Mobile phones */
 @media (max-width: 480px) {
   main {
     width: calc(100% - 16px);
-    margin-top: 8px;
+    margin-top: 10px;
   }
 
   .hero,
   .card {
     border-radius: 18px;
-  }
-
-  .hero {
-    padding: 18px 16px;
-  }
-
-  .card {
     padding: 18px 14px;
   }
 
   .upload-card .platform-grid {
     grid-template-columns: 1fr;
-  }
-
-  .platform-option {
-    padding: 15px 16px;
-  }
-
-  .platform-settings {
-    padding: 18px 16px;
   }
 
   .primary-button,
