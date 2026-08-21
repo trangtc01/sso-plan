@@ -6,6 +6,9 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 
 ### CMS
 - Modern Claymorphism & Soft SaaS tactile interface with dual-shadow cards, custom brand platform options, and glowing status badges
+- responsive admin layout uses near-full laptop/desktop width; the primary Upload Video workflow is full-width, Bulk Import is stacked below as a secondary workflow, and Video Queue / Monitoring remains full-width
+- responsive behavior keeps the upload form two-column on laptop/tablet widths where space permits, then collapses dense form/settings sections to one column on smaller screens
+- bulk import format instructions are collapsed by default and expanded on demand
 - single video upload with drag-and-drop styled input
 - title
 - description

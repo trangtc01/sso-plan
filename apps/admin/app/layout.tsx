@@ -1,4 +1,5 @@
 import "./styles.css";
+import "./responsive-layout.css";
 
 export const metadata = {
   title: "Social Video Scheduler",

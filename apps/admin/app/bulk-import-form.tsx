@@ -53,7 +53,7 @@ export function BulkImportForm() {
         </button>
       </form>
 
-      <details className="format-guide" open>
+      <details className="format-guide">
         <summary>📑 Hướng dẫn cấu trúc file Import</summary>
 
         <div className="format-block">
@@ -78,7 +78,7 @@ export function BulkImportForm() {
 
         <div className="format-block">
           <strong>Mẫu TXT (Sử dụng phím TAB giữa các cột)</strong>
-          <pre>{`/Users/media/clip1.mov	Bé học chữ	Clip vui cho bé	beyeu,mamnon	TIKTOK,YOUTUBE,FACEBOOK	2026-08-21 09:00	PUBLIC	true	PUBLIC	REEL	PUBLIC`}</pre>
+          <pre>{`/Users/media/clip1.mov\tBé học chữ\tClip vui cho bé\tbeyeu,mamnon\tTIKTOK,YOUTUBE,FACEBOOK\t2026-08-21 09:00\tPUBLIC\ttrue\tPUBLIC\tREEL\tPUBLIC`}</pre>
         </div>
 
         <div className="format-block">

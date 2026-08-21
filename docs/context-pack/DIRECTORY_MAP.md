@@ -5,6 +5,9 @@
 ├── apps/
 │   ├── admin/              Next.js CMS
 │   │   └── app/
+│   │       ├── layout.tsx
+│   │       ├── styles.css
+│   │       ├── responsive-layout.css
 │   │       ├── upload-form.tsx
 │   │       ├── bulk-import-form.tsx
 │   │       ├── video-list.tsx
@@ -42,6 +45,11 @@
 ├── start.sh                One-click local startup script
 └── package.json
 ```
+
+## Admin styling split
+
+- `apps/admin/app/styles.css`: canonical Claymorphism / component styling and existing design tokens.
+- `apps/admin/app/responsive-layout.css`: viewport utilization and responsive layout overrides; loaded after `styles.css` from `layout.tsx`.
 
 ## Two Facebook code paths
 

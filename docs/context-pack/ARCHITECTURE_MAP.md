@@ -40,6 +40,25 @@ Redis / BullMQ
           -> PublishJob PUBLISHING/PUBLISHED/FAILED
 ```
 
+## Admin presentation architecture
+
+The CMS is intentionally organized by task priority rather than forcing unrelated tools into one desktop row:
+
+```text
+Hero / system status
+   |
+   v
+Upload Video (primary, full width)
+   |
+   v
+Bulk Import TXT / CSV (secondary, full width, guide collapsed by default)
+   |
+   v
+Video Queue / Monitoring (full width, table scrolls safely when needed)
+```
+
+The upload form may use two internal columns on laptop/tablet widths, while smaller screens reflow dense form/settings sections to one column.
+
 ## Important implementation detail
 
 There is no separate polling scheduler in the current implementation. The API calculates:

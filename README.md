@@ -53,3 +53,5 @@ Tuỳ chọn cấu hình:
 Exit code: `0` draft đã verify; `2` input invalid; `3` cần login; `4` upload lỗi trước Save Draft; `5` kết quả save không xác định; `6` profile đang được dùng.
 
 `AMBIGUOUS` tuyệt đối không được chạy retry tự động: kiểm tra draft thủ công trước.
+
+Trước khi làm việc hãy đọc quy ước ở file AGENTS.md
