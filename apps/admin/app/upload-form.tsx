@@ -119,18 +119,10 @@ export function UploadForm() {
   }
 
   return (
-    <section className="card upload-card">
-      <div className="section-heading">
-        <span className="eyebrow">TẠO LỊCH MỚI</span>
-        <h2>Upload Video</h2>
-        <p className="section-description">
-          Một video có thể chọn nhiều nền tảng. Nếu có TikTok, TikTok sẽ luôn tự động xử lý trước.
-        </p>
-      </div>
-
+    <div className="upload-form-wrapper">
       <form className="form-grid" onSubmit={submit}>
         <label className="field">
-          <span>Tiêu đề</span>
+          <span>Tiêu đề video</span>
           <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
         </label>
 
@@ -139,18 +131,18 @@ export function UploadForm() {
           <input name="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" required />
         </label>
 
-        <label className="field field-full">
+        <label className="field">
           <span>Mô tả / Caption</span>
-          <textarea name="description" maxLength={4000} placeholder="Nội dung caption / description cho bài đăng..." />
+          <textarea name="description" maxLength={4000} placeholder="Nội dung caption cho bài đăng..." />
         </label>
 
-        <label className="field field-full">
+        <label className="field">
           <span>Hashtags</span>
           <input
             name="hashtagsText"
             placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh"
           />
-          <small>Phân cách bằng dấu phẩy. Có hoặc không có dấu # đều hợp lệ.</small>
+          <small>Phân cách bằng dấu phẩy (# không bắt buộc).</small>
         </label>
 
         <div className="field field-full">
@@ -182,7 +174,7 @@ export function UploadForm() {
 
         {hasTikTok && (
           <fieldset className="platform-settings field-full">
-            <legend>Cấu hình TikTok</legend>
+            <legend>TikTok Config</legend>
             <div className="settings-grid">
               <label className="field">
                 <span>Chế độ đăng</span>
@@ -219,17 +211,17 @@ export function UploadForm() {
               {hasDownstream ? (
                 tiktokUseSound ? (
                   <>
-                    💡 <strong>Pipeline tối ưu:</strong> TikTok Public → thêm nhạc xu hướng → tải lại bản hoàn chỉnh → Facebook / YouTube tự động lấy video đã tải đăng tiếp.
+                    💡 <strong>Pipeline:</strong> TikTok Public → thêm nhạc → tải lại video hoàn chỉnh → FB/YT dùng bản đã tải.
                   </>
                 ) : (
                   <>
-                    ℹ️ <strong>Pipeline trực tiếp:</strong> TikTok chạy trước → không thêm nhạc TikTok → Facebook / YouTube lấy thẳng video gốc ban đầu.
+                    ℹ️ <strong>Pipeline:</strong> TikTok chạy trước → không chọn nhạc → FB/YT dùng thẳng video gốc.
                   </>
                 )
               ) : (
                 <>
-                  ℹ️ <strong>Chỉ TikTok:</strong>{" "}
-                  {tiktokUseSound ? "Hệ thống sẽ tự động thêm bài hát trending vào video." : "Đăng video mà không thêm nhạc nền TikTok."}
+                  ℹ️ <strong>TikTok only:</strong>{" "}
+                  {tiktokUseSound ? "Thử chọn nhạc trending trên TikTok." : "Đăng video mà không thêm nhạc TikTok."}
                 </>
               )}
             </div>
@@ -238,7 +230,7 @@ export function UploadForm() {
 
         {platforms.includes("YOUTUBE") && (
           <fieldset className="platform-settings">
-            <legend>Cấu hình YouTube</legend>
+            <legend>YouTube Config</legend>
             <label className="field">
               <span>Chế độ đăng</span>
               <select name="youtubePublishMode" defaultValue="PUBLIC">
@@ -251,7 +243,7 @@ export function UploadForm() {
 
         {platforms.includes("FACEBOOK") && (
           <fieldset className="platform-settings">
-            <legend>Cấu hình Facebook</legend>
+            <legend>Facebook Config</legend>
             <div className="settings-grid">
               <label className="field">
                 <span>Chế độ đăng</span>
@@ -265,7 +257,7 @@ export function UploadForm() {
                 <span>Loại bài đăng</span>
                 <select name="facebookContentType" defaultValue="REEL">
                   <option value="REEL">Reel</option>
-                  <option value="VIDEO_POST">Video Feed bình thường</option>
+                  <option value="VIDEO_POST">Video Feed</option>
                 </select>
               </label>
             </div>
@@ -285,7 +277,7 @@ export function UploadForm() {
       </form>
 
       {message && <div className={`form-message form-message-${messageType}`}>{message}</div>}
-    </section>
+    </div>
   );
 }
 

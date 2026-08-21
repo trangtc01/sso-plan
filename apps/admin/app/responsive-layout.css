@@ -1,125 +1,181 @@
 /*
- * Responsive layout overrides for the Social Video Scheduler admin.
+ * Compact Responsive layout overrides for the Social Video Scheduler admin.
  *
- * Goals:
- * - Desktop (>= 1024px): 2-column side-by-side dashboard (Upload Form on left, Bulk Import on right).
- * - Mobile/Tablet (< 1024px): Stacked single column layout.
- * - Full-width monitoring table below.
+ * Design Goals:
+ * - Single Full-Width Creation Card with Tab Switcher ([Upload Single] | [Bulk Import]).
+ * - Compact vertical density so the entire upload form + queue table fit above the fold without scrolling.
+ * - Clear, readable 2-column input layout for single upload.
  */
 
-/* Container: fill width comfortably with safe gutters */
+/* Container: max 1440px centered */
 main {
-  width: min(1560px, calc(100% - 48px));
-  margin: 28px auto 70px;
+  width: min(1440px, calc(100% - 48px));
+  margin: 20px auto 60px;
 }
 
-/* Desktop 2-column side-by-side grid */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
-  gap: 28px;
-  align-items: start;
-  margin-bottom: 28px;
+/* Compact Hero Header */
+.hero.hero-compact {
+  padding: 18px 28px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
 }
 
-.upload-card,
-.import-card,
-.videos-card {
-  width: 100%;
-  min-width: 0;
+.hero-compact h1 {
+  font-size: 24px;
+  margin-bottom: 0;
 }
 
-/* Form inside Upload card */
-.upload-card .form-grid {
+.hero-compact .eyebrow {
+  margin-bottom: 4px;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+/* Tabbed Creation Card */
+.creation-card {
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  border-radius: var(--radius-xl);
+}
+
+.creation-tab-header {
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tab-switcher {
+  display: inline-flex;
+  gap: 6px;
+  background: var(--surface-clay-subtle);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 7px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: var(--primary-600);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.16);
+}
+
+/* Form Density Adjustments */
+.upload-form-wrapper .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 14px 20px;
 }
 
-.upload-card .platform-grid {
+.upload-form-wrapper input[type="text"],
+.upload-form-wrapper input[type="datetime-local"],
+.upload-form-wrapper select {
+  min-height: 42px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.upload-form-wrapper textarea {
+  min-height: 72px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.upload-form-wrapper input[type="file"] {
+  min-height: 42px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+}
+
+.platform-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
-.upload-card .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.platform-option {
+  padding: 12px 14px;
+  gap: 10px;
 }
 
-/* Wide desktop */
-@media (min-width: 1600px) {
-  main {
-    width: min(1600px, calc(100% - 64px));
-  }
+.platform-option-content strong {
+  font-size: 14px;
 }
 
-/* Tablet landscape & smaller screens: stack dashboard to 1 column */
-@media (max-width: 1024px) {
-  main {
-    width: calc(100% - 32px);
-    margin: 20px auto 56px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
+.platform-option-content small {
+  font-size: 11.5px;
 }
 
-/* Tablet portrait */
-@media (max-width: 768px) {
-  main {
-    width: calc(100% - 24px);
-    margin: 14px auto 44px;
-  }
-
-  .hero {
-    padding: 22px 20px;
-  }
-
-  .card {
-    padding: 22px 18px;
-  }
-
-  .upload-card .form-grid,
-  .upload-card .settings-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .upload-card .platform-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-
-  .form-actions {
-    justify-content: stretch;
-  }
-
-  .form-actions .primary-button {
-    width: 100%;
-  }
+.platform-settings {
+  padding: 16px 18px;
+  gap: 12px;
 }
 
-/* Mobile phones */
-@media (max-width: 480px) {
-  main {
-    width: calc(100% - 16px);
-    margin-top: 10px;
-  }
+.platform-settings legend {
+  font-size: 12px;
+  padding: 3px 12px;
+}
 
-  .hero,
-  .card {
-    border-radius: 18px;
-    padding: 18px 14px;
-  }
+.flow-note {
+  padding: 12px 16px;
+  font-size: 13px;
+}
 
-  .upload-card .platform-grid {
+.primary-button {
+  min-height: 44px;
+  padding: 10px 24px;
+  font-size: 14.5px;
+}
+
+/* Video List Card */
+.videos-card {
+  padding: 24px 28px;
+}
+
+.videos-table td {
+  padding: 14px 16px;
+  font-size: 13.5px;
+}
+
+/* Media Queries for smaller screens */
+@media (max-width: 900px) {
+  .upload-form-wrapper .form-grid {
     grid-template-columns: 1fr;
   }
 
-  .primary-button,
-  .secondary-button {
-    min-height: 44px;
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  main {
+    width: calc(100% - 20px);
+    margin: 12px auto 40px;
+  }
+
+  .creation-card,
+  .hero.hero-compact,
+  .videos-card {
+    padding: 16px 14px;
+  }
+
+  .tab-btn {
+    padding: 6px 12px;
+    font-size: 12.5px;
   }
 }
