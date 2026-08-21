@@ -93,6 +93,7 @@ model PublishJob {
   platform            Platform
   publishMode         PublishMode          @default(PUBLIC)
   facebookContentType FacebookContentType?
+  useTikTokSource     Boolean              @default(false)
   publishTime         DateTime?
   status              PublishStatus        @default(QUEUED)
   retryCount          Int                  @default(0)
@@ -132,6 +133,7 @@ model UploadJob {
   videoId      String
   status       VideoStatus @default(QUEUED)
   publishMode  PublishMode @default(DRAFT)
+  useSound     Boolean     @default(true)
   publishTime  DateTime?
   retryCount   Int         @default(0)
   errorMessage String?

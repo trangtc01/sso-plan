@@ -24,8 +24,9 @@ if (command === "draft" || command === "publish") {
   const captionFlag = args.indexOf("--caption");
   const isPauseMode = args.includes("--pause") || args.includes("--step") || args.includes("-p");
   const publishMode = command === "publish" || args.includes("--public") ? "PUBLIC" : "DRAFT";
+  const useSound = !args.includes("--no-sound");
 
-  console.log(`[TikTok CLI] Starting upload with publishMode=${publishMode}${isPauseMode ? " (PAUSE MODE ENABLED)" : ""}`);
+  console.log(`[TikTok CLI] Starting upload with publishMode=${publishMode}, useSound=${useSound}${isPauseMode ? " (PAUSE MODE ENABLED)" : ""}`);
   let publishedVideoUrl: string | undefined;
 
   const exitCode = await runDraft(
@@ -33,6 +34,7 @@ if (command === "draft" || command === "publish") {
       filePath: fileFlag >= 0 ? args[fileFlag + 1] : undefined,
       caption: captionFlag >= 0 ? args[captionFlag + 1] : undefined,
       publishMode,
+      useSound,
       onPublishedUrl: async (url) => {
         publishedVideoUrl = url;
         if (url) {

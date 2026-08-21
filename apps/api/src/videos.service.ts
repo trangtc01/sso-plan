@@ -32,6 +32,7 @@ interface CreateInput {
   facebookContentType?: FacebookContentType;
   youtubePublishMode?: PublishMode;
   tiktokPublishMode?: PublishMode;
+  tiktokUseSound?: boolean;
 }
 
 @Injectable()
@@ -75,14 +76,18 @@ export class VideosService {
     const publishTime = normalizePublishTime(input.publishAt);
     const hasTikTok = platforms.includes(Platform.TIKTOK);
     const hasDownstream = platforms.some(platform => platform !== Platform.TIKTOK);
+    const tiktokUseSound = input.tiktokUseSound ?? true;
+    const tiktokPublishMode = input.tiktokPublishMode
+      ?? (hasTikTok && hasDownstream && tiktokUseSound ? PublishMode.PUBLIC : PublishMode.DRAFT);
 
     if (
       hasTikTok &&
       hasDownstream &&
-      (input.tiktokPublishMode ?? PublishMode.DRAFT) !== PublishMode.PUBLIC
+      tiktokUseSound &&
+      tiktokPublishMode !== PublishMode.PUBLIC
     ) {
       throw new BadRequestException(
-        "When TikTok is selected together with Facebook/YouTube, TikTok publish mode must be PUBLIC because downstream platforms use the video downloaded after TikTok publishes.",
+        "TikTok must be PUBLIC when TikTok sound is enabled with Facebook/YouTube because downstream platforms use the downloaded TikTok version. Disable TikTok sound to use the original video downstream.",
       );
     }
 
@@ -106,7 +111,8 @@ export class VideosService {
             data: {
               videoId: video.id,
               status: VideoStatus.QUEUED,
-              publishMode: input.tiktokPublishMode ?? PublishMode.DRAFT,
+              publishMode: tiktokPublishMode,
+              useSound: tiktokUseSound,
               publishTime,
             },
           })
@@ -126,8 +132,9 @@ export class VideosService {
             facebookContentType: platform === Platform.FACEBOOK
               ? input.facebookContentType ?? FacebookContentType.REEL
               : null,
+            useTikTokSource: hasTikTok && tiktokUseSound,
             publishTime,
-            status: hasTikTok ? PublishStatus.WAITING_SOURCE : PublishStatus.SCHEDULED,
+            status: (hasTikTok && tiktokUseSound) ? PublishStatus.WAITING_SOURCE : PublishStatus.SCHEDULED,
           },
         }));
       }
@@ -159,12 +166,13 @@ export class VideosService {
     return result;
   }
 
-  async importTxt(text: string) {
+  async importTxt(text: string, fileName = "import.txt") {
     let rows;
     try {
       rows = parseBulkImportText(text, {
         baseDir: process.env.BULK_VIDEO_BASE_DIR,
         timezoneOffset: process.env.BULK_IMPORT_TIMEZONE_OFFSET ?? "+07:00",
+        format: fileName.toLowerCase().endsWith(".csv") ? "csv" : "tsv",
       });
     } catch (error) {
       if (error instanceof BulkImportParseError) throw new BadRequestException(error.problems);
@@ -182,6 +190,11 @@ export class VideosService {
           sourcePath: stagedPath,
           platforms: row.platforms,
           publishAt: row.publishAt,
+          tiktokPublishMode: row.tiktokPublishMode,
+          tiktokUseSound: row.tiktokUseSound,
+          facebookPublishMode: row.facebookPublishMode,
+          facebookContentType: row.facebookContentType,
+          youtubePublishMode: row.youtubePublishMode,
         });
         items.push({ line: row.line, ok: true, videoId: created.video.id });
       } catch (error) {
@@ -229,10 +242,18 @@ export class VideosService {
   }
 
   async rerunPublish(jobId: string) {
-    const job = await this.prisma.publishJob.findUnique({ where: { id: jobId } });
+    const job = await this.prisma.publishJob.findUnique({
+      where: { id: jobId },
+      include: { video: true },
+    });
     if (!job) throw new NotFoundException("publish job not found");
     if (job.status !== PublishStatus.FAILED) {
       throw new BadRequestException(`publish job cannot be rerun from ${job.status}`);
+    }
+    if (job.useTikTokSource && !job.video.tiktokDownloadedPath) {
+      throw new BadRequestException(
+        "This publish job requires the downloaded TikTok source, but no TikTok-downloaded file is available. Rerun the TikTok/download flow first.",
+      );
     }
 
     const updated = await this.prisma.publishJob.update({

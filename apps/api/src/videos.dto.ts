@@ -43,12 +43,26 @@ export class CreateVideoDto {
   @IsOptional()
   @IsEnum(PublishMode)
   tiktokPublishMode: PublishMode = PublishMode.DRAFT;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, true))
+  @IsBoolean()
+  tiktokUseSound = true;
 }
 
 export class RerunDto {
   @IsOptional()
   @IsBoolean()
   confirmNoDraft = false;
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "on", "co", "có"].includes(normalized)) return true;
+  if (["false", "0", "no", "off", "khong", "không"].includes(normalized)) return false;
+  return fallback;
 }
 
 function parseJsonArray(value: unknown, fallback: string[]): string[] {

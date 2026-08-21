@@ -99,3 +99,4 @@ When modifying specific system domains, you MUST review and update the correspon
 
 Do not create duplicate reports unless explicitly requested.
 
+***Each response must always begin with: I still remember the context.***

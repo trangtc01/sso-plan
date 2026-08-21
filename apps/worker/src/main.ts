@@ -16,6 +16,7 @@ import { loadConfig } from "../../../src/config.js";
 import { runDraft } from "../../../src/run-draft.js";
 import type { RunState } from "../../../src/types.js";
 import { PUBLISH_QUEUES } from "../../../src/publish-queues.js";
+import { PlaywrightTikTokDraftAdapter } from "../../../src/tiktok-adapter.js";
 import { FacebookReelsPublisher } from "../../../src/social/facebook-publisher.js";
 import { YoutubePlaywrightPublisher } from "../../../src/social/youtube-playwright-publisher.js";
 import { loadFacebookConfig, loadYoutubePlaywrightConfig } from "../../../src/social/config.js";
@@ -41,24 +42,20 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
       logPath: tiktokConfig.artifactDir,
     },
   });
-  await updateTikTokStatus(job.id, job.videoId, attempt.id, "UPLOADING");
+
+  await updateTikTokStatus(job.id, job.videoId, attempt.id, VideoStatus.UPLOADING);
+
   const caption = [job.video.description, ...job.video.hashtags.map(tag => `#${tag}`)]
     .filter(Boolean)
     .join(" ");
 
   let publishedUrl: string | undefined;
-  let playwrightDownloadedPath: string | undefined;
-  let playwrightDownloadError: string | undefined;
-  const tiktokDownloadDir = path.resolve(
-    process.env.TIKTOK_DOWNLOAD_DIR ?? ".social-automation/tiktok-downloads",
-  );
-  const preferredDownloadPath = path.join(tiktokDownloadDir, `${job.videoId}.mp4`);
 
   const code = await runDraft({
-    filePath: job.video.outputPath ?? job.video.sourcePath,
+    filePath: job.video.sourcePath,
     caption,
     publishMode: job.publishMode,
-    publishedDownloadPath: preferredDownloadPath,
+    useSound: job.useSound,
     onPublishedUrl: async url => {
       publishedUrl = url;
       if (url) {
@@ -66,27 +63,6 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
           where: { id: job.videoId },
           data: { tiktokPublishedUrl: url },
         });
-      }
-    },
-    onPublishedDownload: async result => {
-      if (result.downloadedPath) {
-        playwrightDownloadedPath = result.downloadedPath;
-        await prisma.video.update({
-          where: { id: job.videoId },
-          data: {
-            tiktokPublishedUrl: result.url,
-            tiktokDownloadedPath: result.downloadedPath,
-            outputPath: result.downloadedPath,
-          },
-        });
-        console.log(
-          `[TikTok Worker] Playwright downloaded published TikTok video: ${result.downloadedPath}`,
-        );
-      } else if (result.error) {
-        playwrightDownloadError = result.error;
-        console.warn(
-          `[TikTok Worker] Playwright TikTok download failed; yt-dlp fallback will be used: ${result.error}`,
-        );
       }
     },
     onState: async (state, error) => updateTikTokStatus(
@@ -100,8 +76,6 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
 
   if (code !== 0) return;
 
-  if (job.publishMode !== PublishMode.PUBLIC) return;
-
   const downstreamJobs = await prisma.publishJob.findMany({
     where: {
       videoId: job.videoId,
@@ -112,31 +86,56 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
 
   if (!downstreamJobs.length) return;
 
+  if (!job.useSound) {
+    console.log(
+      `[TikTok Worker] useSound=false; skipping TikTok download and releasing ${downstreamJobs.length} downstream job(s) with original source`,
+    );
+    await releaseDownstream(downstreamJobs);
+    return;
+  }
+
+  if (job.publishMode !== PublishMode.PUBLIC) {
+    const errorMessage =
+      "TikTok sound is enabled for downstream platforms, but TikTok is not PUBLIC; a published TikTok URL is required for the current sound-preserving download flow.";
+    await prisma.uploadJob.update({ where: { id: job.id }, data: { errorMessage } });
+    await failWaitingDownstream(job.videoId, errorMessage);
+    return;
+  }
+
   const latestVideo = await prisma.video.findUnique({ where: { id: job.videoId } });
   const finalPublishedUrl = publishedUrl ?? latestVideo?.tiktokPublishedUrl ?? undefined;
 
   if (!finalPublishedUrl) {
     const errorMessage =
       "TikTok was published but its public video URL could not be resolved; Facebook/YouTube were not released.";
-    await prisma.uploadJob.update({
-      where: { id: job.id },
-      data: { errorMessage },
-    });
+    await prisma.uploadJob.update({ where: { id: job.id }, data: { errorMessage } });
     await failWaitingDownstream(job.videoId, errorMessage);
     return;
   }
 
+  const downloadDir = path.resolve(
+    process.env.TIKTOK_DOWNLOAD_DIR ?? ".social-automation/tiktok-downloads",
+  );
+  const preferredDownloadPath = path.join(downloadDir, `${job.videoId}.mp4`);
+
   try {
-    let downloadedPath =
-      playwrightDownloadedPath ??
-      latestVideo?.tiktokDownloadedPath;
+    let downloadedPath = latestVideo?.tiktokDownloadedPath ?? undefined;
 
     if (!downloadedPath) {
-      console.warn(
-        `[TikTok Worker] Falling back to yt-dlp for ${finalPublishedUrl}` +
-        (playwrightDownloadError ? ` because Playwright failed: ${playwrightDownloadError}` : ""),
-      );
-      downloadedPath = await downloadTikTokVideoWithYtDlp(job.videoId, finalPublishedUrl);
+      try {
+        downloadedPath = await downloadTikTokVideoWithPlaywright(
+          finalPublishedUrl,
+          preferredDownloadPath,
+        );
+        console.log(`[TikTok Worker] Playwright download completed: ${downloadedPath}`);
+      } catch (playwrightError) {
+        console.warn(
+          `[TikTok Worker] Playwright download failed; falling back to yt-dlp: ${
+            playwrightError instanceof Error ? playwrightError.message : String(playwrightError)
+          }`,
+        );
+        downloadedPath = await downloadTikTokVideoWithYtDlp(job.videoId, finalPublishedUrl);
+      }
     }
 
     await prisma.video.update({
@@ -148,29 +147,13 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
       },
     });
 
-    for (const downstream of downstreamJobs) {
-      const updated = await prisma.publishJob.update({
-        where: { id: downstream.id },
-        data: {
-          status: PublishStatus.SCHEDULED,
-          errorMessage: null,
-        },
-      });
-
-      const queue = updated.platform === Platform.FACEBOOK ? facebookQueue : youtubeQueue;
-      await queue.add("publish", { publishJobId: updated.id }, {
-        jobId: `${updated.id}:after-tiktok`,
-        removeOnComplete: 100,
-        removeOnFail: 100,
-      });
-    }
+    await releaseDownstream(downstreamJobs);
   } catch (error) {
     const errorMessage =
-      `TikTok published successfully but downstream source download failed: ${error instanceof Error ? error.message : String(error)}`;
-    await prisma.uploadJob.update({
-      where: { id: job.id },
-      data: { errorMessage },
-    });
+      `TikTok published successfully but downstream source download failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+    await prisma.uploadJob.update({ where: { id: job.id }, data: { errorMessage } });
     await failWaitingDownstream(job.videoId, errorMessage);
   }
 }, { connection, concurrency: 1 });
@@ -179,6 +162,7 @@ const facebookWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.faceb
   const job = await loadPublishJob(queueJob.data.publishJobId);
   if (!job) return;
   await markPublishing(job.id);
+
   try {
     const hashtags = job.video.hashtags.map(tag => `#${tag}`).join(" ");
     const description = [job.video.description, hashtags].filter(Boolean).join("\n\n");
@@ -188,7 +172,7 @@ const facebookWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.faceb
       : "REEL";
 
     const result = await new FacebookReelsPublisher(loadFacebookConfig()).publish({
-      filePath: job.video.outputPath ?? job.video.sourcePath,
+      filePath: resolvePublishSource(job),
       title: job.video.title,
       description,
       tags: job.video.hashtags,
@@ -205,9 +189,10 @@ const youtubeWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.youtub
   const job = await loadPublishJob(queueJob.data.publishJobId);
   if (!job) return;
   await markPublishing(job.id);
+
   try {
     const result = await new YoutubePlaywrightPublisher(loadYoutubePlaywrightConfig()).publish({
-      filePath: job.video.outputPath ?? job.video.sourcePath,
+      filePath: resolvePublishSource(job),
       title: job.video.title,
       description: job.video.description,
       tags: job.video.hashtags,
@@ -215,6 +200,7 @@ const youtubeWorker = new Worker<{ publishJobId: string }>(PUBLISH_QUEUES.youtub
       privacy: job.publishMode === PublishMode.DRAFT ? "private" : "public",
       madeForKids: (process.env.YOUTUBE_DEFAULT_MADE_FOR_KIDS ?? "false").toLowerCase() === "true",
     });
+
     await markPublished(job.id, result.externalId, result.raw);
   } catch (error) {
     await markPublishFailed(job.id, error);
@@ -246,7 +232,51 @@ process.on("SIGINT", async () => {
 });
 
 async function loadPublishJob(id: string) {
-  return prisma.publishJob.findUnique({ where: { id }, include: { video: true } });
+  return prisma.publishJob.findUnique({
+    where: { id },
+    include: { video: true },
+  });
+}
+
+type LoadedPublishJob = NonNullable<Awaited<ReturnType<typeof loadPublishJob>>>;
+
+function resolvePublishSource(job: LoadedPublishJob): string {
+  if (!job.useTikTokSource) return job.video.sourcePath;
+
+  if (!job.video.tiktokDownloadedPath) {
+    throw new Error(
+      `Publish job ${job.id} requires the TikTok-downloaded source, but tiktokDownloadedPath is empty. Refusing to fall back to the original file.`,
+    );
+  }
+
+  return job.video.tiktokDownloadedPath;
+}
+
+async function releaseDownstream(
+  jobs: Array<{ id: string; platform: Platform }>,
+): Promise<void> {
+  for (const downstream of jobs) {
+    const updated = await prisma.publishJob.update({
+      where: { id: downstream.id },
+      data: {
+        status: PublishStatus.SCHEDULED,
+        errorMessage: null,
+        finishedAt: null,
+      },
+    });
+
+    const queue = updated.platform === Platform.FACEBOOK ? facebookQueue : youtubeQueue;
+    try {
+      await queue.add("publish", { publishJobId: updated.id }, {
+        jobId: `${updated.id}:after-tiktok`,
+        removeOnComplete: 100,
+        removeOnFail: 100,
+      });
+    } catch (error) {
+      await markPublishFailed(updated.id, error);
+      throw error;
+    }
+  }
 }
 
 async function failWaitingDownstream(videoId: string, errorMessage: string) {
@@ -262,6 +292,24 @@ async function failWaitingDownstream(videoId: string, errorMessage: string) {
       errorMessage,
     },
   });
+}
+
+async function downloadTikTokVideoWithPlaywright(
+  url: string,
+  outputPath: string,
+): Promise<string> {
+  const adapter = new PlaywrightTikTokDraftAdapter(
+    tiktokConfig,
+    path.resolve(tiktokConfig.artifactDir),
+  );
+
+  console.log("[TikTok Worker] Opening a fresh Playwright browser for the download step...");
+  await adapter.open();
+  try {
+    return await adapter.downloadPublishedVideo(url, outputPath);
+  } finally {
+    await adapter.close().catch(() => undefined);
+  }
 }
 
 async function downloadTikTokVideoWithYtDlp(videoId: string, url: string): Promise<string> {
@@ -290,6 +338,7 @@ async function downloadTikTokVideoWithYtDlp(videoId: string, url: string): Promi
         `Could not start ${executable}. Install yt-dlp or set YT_DLP_EXECUTABLE. ${error.message}`,
       ));
     });
+
     child.once("exit", code => {
       if (code === 0) resolve();
       else reject(new Error(`${executable} exited with code ${code ?? "unknown"}`));

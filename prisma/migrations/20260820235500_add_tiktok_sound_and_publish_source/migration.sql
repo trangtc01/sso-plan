@@ -1,0 +1,5 @@
+ALTER TABLE "UploadJob"
+ADD COLUMN "useSound" BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE "PublishJob"
+ADD COLUMN "useTikTokSource" BOOLEAN NOT NULL DEFAULT false;

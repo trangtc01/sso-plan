@@ -13,17 +13,17 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - per-platform scheduling options:
   - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`)
   - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private)
-  - TikTok: Publish mode (`DRAFT` default / `PUBLIC` option)
-- validation: When TikTok is selected together with Facebook/YouTube, TikTok publish mode must be `PUBLIC`
+  - TikTok: Publish mode (`DRAFT` default / `PUBLIC` option), Sound option (`useSound: true/false`, `--no-sound` in CLI)
+- validation: When TikTok is selected with sound=true together with Facebook/YouTube, TikTok publish mode must be `PUBLIC`. If sound=false, original video is used downstream without requiring TikTok Public mode.
 - datetime-local publish time
-- bulk TXT import
-- video/job list & rerun controls
+- bulk TXT (tab-separated) and CSV import supporting extended columns (`tiktok_mode`, `tiktok_use_sound`, `facebook_mode`, `facebook_type`, `youtube_mode`)
+- video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`)
 
 ### API / scheduling
 - creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
-- TikTok uses `UploadJob` with `publishTime` and `publishMode` (`DRAFT`/`PUBLIC`)
-- Facebook/YouTube use `PublishJob` with `status: WAITING_SOURCE` when TikTok is included (or `SCHEDULED` if TikTok is not selected)
-- when TikTok is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
+- TikTok uses `UploadJob` with `publishTime`, `publishMode` (`DRAFT`/`PUBLIC`), and `useSound` (`Boolean`)
+- Facebook/YouTube use `PublishJob` with `useTikTokSource` (`Boolean`) and `status: WAITING_SOURCE` when TikTok with sound is included (or `SCHEDULED` if TikTok is not selected or sound=false)
+- when TikTok with sound is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
 
 ### Worker & CLI
 - TikTok worker handles `DRAFT` and `PUBLIC`

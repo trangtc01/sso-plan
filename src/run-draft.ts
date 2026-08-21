@@ -12,6 +12,7 @@ export interface RunDraftOptions {
   filePath: string | undefined;
   caption?: string;
   publishMode?: "DRAFT" | "PUBLIC";
+  useSound?: boolean;
   onPublishedUrl?: (url: string | undefined) => Promise<void>;
   publishedDownloadPath?: string;
   onPublishedDownload?: (result: {
@@ -51,7 +52,7 @@ export async function runDraft(options: RunDraftOptions, config: AppConfig, adap
     await adapter.upload(input.path);
     await options.onStep?.("Chọn file video thành công");
 
-    if (adapter.selectSound) {
+    if (options.useSound !== false && adapter.selectSound) {
       await adapter.selectSound().catch(err => {
         console.warn(`[TikTok Adapter] Sound selection warning: ${err instanceof Error ? err.message : String(err)}`);
       });

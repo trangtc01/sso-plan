@@ -60,11 +60,14 @@ export class VideosController {
   @UseInterceptors(FileInterceptor("file", {
     storage: memoryStorage(),
     limits: { fileSize: Number(process.env.BULK_IMPORT_MAX_BYTES ?? 1024 * 1024) },
-    fileFilter: (_req, file, done) => done(null, file.originalname.toLowerCase().endsWith(".txt")),
+    fileFilter: (_req, file, done) => {
+      const lower = file.originalname.toLowerCase();
+      done(null, lower.endsWith(".txt") || lower.endsWith(".csv"));
+    },
   }))
   importTxt(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new BadRequestException("A .txt import file is required");
-    return this.videos.importTxt(file.buffer.toString("utf8"));
+    if (!file) throw new BadRequestException("A .txt or .csv import file is required");
+    return this.videos.importTxt(file.buffer.toString("utf8"), file.originalname);
   }
 
   @Post("jobs/:jobId/rerun")
