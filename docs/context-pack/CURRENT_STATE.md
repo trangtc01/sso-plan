@@ -28,6 +28,8 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 ### API / scheduling
 - creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
 - TikTok uses `UploadJob` with `publishTime`, `publishMode` (`DRAFT`/`PUBLIC`), and `useSound` (`Boolean`)
+- robust `parseBoolean` module (`apps/api/src/parse-boolean.ts`) used across DTO transformers and `VideosService.create` to ensure string/array values (e.g. `"false"`) sent via multipart form data evaluate properly as boolean `false` instead of truthy strings
+
 - Facebook/YouTube use `PublishJob` with `useTikTokSource` (`Boolean`) and `status: WAITING_SOURCE` when TikTok with sound is included (or `SCHEDULED` if TikTok is not selected or sound=false)
 - when TikTok with sound is selected with downstream platforms, downstream jobs are held in `WAITING_SOURCE` until TikTok is published and downloaded
 

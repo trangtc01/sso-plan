@@ -1,6 +1,9 @@
 import { Transform } from "class-transformer";
 import { IsArray, IsBoolean, IsEnum, IsISO8601, IsOptional, IsString, MaxLength } from "class-validator";
 import { FacebookContentType, Platform, PublishMode } from "@prisma/client";
+import { parseBoolean } from "./parse-boolean.js";
+
+export { parseBoolean };
 
 export class CreateVideoDto {
   @IsString()
@@ -54,15 +57,6 @@ export class RerunDto {
   @IsOptional()
   @IsBoolean()
   confirmNoDraft = false;
-}
-
-function parseBoolean(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") return value;
-  if (typeof value !== "string") return fallback;
-  const normalized = value.trim().toLowerCase();
-  if (["true", "1", "yes", "on", "co", "có"].includes(normalized)) return true;
-  if (["false", "0", "no", "off", "khong", "không"].includes(normalized)) return false;
-  return fallback;
 }
 
 function parseJsonArray(value: unknown, fallback: string[]): string[] {

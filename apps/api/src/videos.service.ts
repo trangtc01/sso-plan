@@ -14,6 +14,8 @@ import { assertTransition } from "./job-state.js";
 import { BulkImportParseError, parseBulkImportText, stageImportedVideo } from "./bulk-import.js";
 import { PUBLISH_QUEUES } from "../../../src/publish-queues.js";
 
+import { parseBoolean } from "./parse-boolean.js";
+
 const connection = { url: process.env.REDIS_URL ?? "redis://localhost:6379" };
 const tiktokQueue = new Queue(PUBLISH_QUEUES.tiktok, { connection });
 const facebookQueue = new Queue(PUBLISH_QUEUES.facebook, { connection });
@@ -32,7 +34,7 @@ interface CreateInput {
   facebookContentType?: FacebookContentType;
   youtubePublishMode?: PublishMode;
   tiktokPublishMode?: PublishMode;
-  tiktokUseSound?: boolean;
+  tiktokUseSound?: boolean | string;
 }
 
 @Injectable()
@@ -76,7 +78,7 @@ export class VideosService {
     const publishTime = normalizePublishTime(input.publishAt);
     const hasTikTok = platforms.includes(Platform.TIKTOK);
     const hasDownstream = platforms.some(platform => platform !== Platform.TIKTOK);
-    const tiktokUseSound = input.tiktokUseSound ?? true;
+    const tiktokUseSound = parseBoolean(input.tiktokUseSound, true);
     const tiktokPublishMode = input.tiktokPublishMode
       ?? (hasTikTok && hasDownstream && tiktokUseSound ? PublishMode.PUBLIC : PublishMode.DRAFT);
 
