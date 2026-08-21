@@ -545,8 +545,8 @@ export class PlaywrightTikTokDraftAdapter implements TikTokDraftAdapter {
 
   async navigateToDraftsList(): Promise<void> {
     const page = this.requirePage();
-    const draftsUrl = "https://www.tiktok.com/tiktokstudio/content";
-    if (!page.url().includes("/content")) {
+    const draftsUrl = "https://www.tiktok.com/tiktokstudio/content?tab=draft";
+    if (!page.url().includes("tab=draft")) {
       console.log(`[TikTok Adapter] Navigating to drafts list: ${draftsUrl}`);
       await page.goto(draftsUrl, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
       await page.waitForTimeout(1_000);
