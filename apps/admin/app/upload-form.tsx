@@ -120,159 +120,165 @@ export function UploadForm() {
 
   return (
     <div className="upload-form-wrapper">
-      <form className="form-grid" onSubmit={submit}>
-        <label className="field">
-          <span>Tiêu đề video</span>
-          <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
-        </label>
+      <form className="two-column-upload-form" onSubmit={submit}>
+        {/* Cột Bên Trái: Thông tin video & File */}
+        <div className="form-col-left">
+          <label className="field">
+            <span>Tiêu đề video</span>
+            <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
+          </label>
 
-        <label className="field">
-          <span>File Video (MP4 / MOV)</span>
-          <input name="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" required />
-        </label>
+          <label className="field">
+            <span>Mô tả / Caption</span>
+            <textarea name="description" maxLength={4000} placeholder="Nội dung caption cho bài đăng..." />
+          </label>
 
-        <label className="field">
-          <span>Mô tả / Caption</span>
-          <textarea name="description" maxLength={4000} placeholder="Nội dung caption cho bài đăng..." />
-        </label>
+          <label className="field">
+            <span>Hashtags</span>
+            <input
+              name="hashtagsText"
+              placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh"
+            />
+            <small>Phân cách bằng dấu phẩy (# không bắt buộc).</small>
+          </label>
 
-        <label className="field">
-          <span>Hashtags</span>
-          <input
-            name="hashtagsText"
-            placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh"
-          />
-          <small>Phân cách bằng dấu phẩy (# không bắt buộc).</small>
-        </label>
+          <label className="field">
+            <span>File Video (MP4 / MOV)</span>
+            <input name="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" required />
+          </label>
 
-        <div className="field field-full">
-          <span>Nền tảng xuất bản</span>
-          <div className="platform-grid">
-            {PLATFORM_OPTIONS.map(option => {
-              const selected = platforms.includes(option.value);
-              return (
-                <label
-                  key={option.value}
-                  className={`platform-option ${selected ? `platform-option-selected ${option.colorClass}` : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    name="platforms"
-                    value={option.value}
-                    checked={selected}
-                    onChange={event => togglePlatform(option.value, event.currentTarget.checked)}
-                  />
-                  <div className="platform-option-content">
-                    <strong>{option.label}</strong>
-                    <small>{option.hint}</small>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
+          <label className="field">
+            <span>Thời gian xuất bản</span>
+            <input name="publishAtLocal" type="datetime-local" defaultValue={defaultPublishAt} required />
+          </label>
         </div>
 
-        {hasTikTok && (
-          <fieldset className="platform-settings field-full">
-            <legend>TikTok Config</legend>
-            <div className="settings-grid">
-              <label className="field">
-                <span>Chế độ đăng</span>
-                <select
-                  name="tiktokPublishMode"
-                  value={tiktokPublishMode}
-                  onChange={event => setTiktokPublishMode(
-                    event.currentTarget.value as "DRAFT" | "PUBLIC",
-                  )}
-                >
-                  <option value="DRAFT">Draft (Bản nháp)</option>
-                  <option value="PUBLIC">Public (Công khai ngay)</option>
-                </select>
-              </label>
-
-              <label className="field">
-                <span>Lấy nhạc từ TikTok</span>
-                <select
-                  name="tiktokUseSound"
-                  value={String(tiktokUseSound)}
-                  onChange={event => {
-                    const next = event.currentTarget.value === "true";
-                    setTiktokUseSound(next);
-                    if (next && hasDownstream) setTiktokPublishMode("PUBLIC");
-                  }}
-                >
-                  <option value="true">Có — tự chọn nhạc trên TikTok</option>
-                  <option value="false">Không — giữ nguyên video gốc</option>
-                </select>
-              </label>
+        {/* Cột Bên Phải: Chọn nền tảng & Cấu hình xuất bản */}
+        <div className="form-col-right">
+          <div className="field">
+            <span>Nền tảng xuất bản</span>
+            <div className="platform-grid">
+              {PLATFORM_OPTIONS.map(option => {
+                const selected = platforms.includes(option.value);
+                return (
+                  <label
+                    key={option.value}
+                    className={`platform-option ${selected ? `platform-option-selected ${option.colorClass}` : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="platforms"
+                      value={option.value}
+                      checked={selected}
+                      onChange={event => togglePlatform(option.value, event.currentTarget.checked)}
+                    />
+                    <div className="platform-option-content">
+                      <strong>{option.label}</strong>
+                      <small>{option.hint}</small>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
+          </div>
 
-            <div className={`flow-note ${tiktokUseSound ? "flow-note-accent" : ""}`}>
-              {hasDownstream ? (
-                tiktokUseSound ? (
-                  <>
-                    💡 <strong>Pipeline:</strong> TikTok Public → thêm nhạc → tải lại video hoàn chỉnh → FB/YT dùng bản đã tải.
-                  </>
+          {hasTikTok && (
+            <fieldset className="platform-settings">
+              <legend>TikTok Config</legend>
+              <div className="settings-grid">
+                <label className="field">
+                  <span>Chế độ đăng</span>
+                  <select
+                    name="tiktokPublishMode"
+                    value={tiktokPublishMode}
+                    onChange={event => setTiktokPublishMode(
+                      event.currentTarget.value as "DRAFT" | "PUBLIC",
+                    )}
+                  >
+                    <option value="DRAFT">Draft (Bản nháp)</option>
+                    <option value="PUBLIC">Public (Công khai ngay)</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>Lấy nhạc từ TikTok</span>
+                  <select
+                    name="tiktokUseSound"
+                    value={String(tiktokUseSound)}
+                    onChange={event => {
+                      const next = event.currentTarget.value === "true";
+                      setTiktokUseSound(next);
+                      if (next && hasDownstream) setTiktokPublishMode("PUBLIC");
+                    }}
+                  >
+                    <option value="true">Có — tự chọn nhạc trên TikTok</option>
+                    <option value="false">Không — giữ nguyên video gốc</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className={`flow-note ${tiktokUseSound ? "flow-note-accent" : ""}`}>
+                {hasDownstream ? (
+                  tiktokUseSound ? (
+                    <>
+                      💡 <strong>Pipeline:</strong> TikTok Public → thêm nhạc → tải lại video hoàn chỉnh → FB/YT dùng bản đã tải.
+                    </>
+                  ) : (
+                    <>
+                      ℹ️ <strong>Pipeline:</strong> TikTok chạy trước → không chọn nhạc → FB/YT dùng thẳng video gốc.
+                    </>
+                  )
                 ) : (
                   <>
-                    ℹ️ <strong>Pipeline:</strong> TikTok chạy trước → không chọn nhạc → FB/YT dùng thẳng video gốc.
+                    ℹ️ <strong>TikTok only:</strong>{" "}
+                    {tiktokUseSound ? "Thử chọn nhạc trending trên TikTok." : "Đăng video mà không thêm nhạc TikTok."}
                   </>
-                )
-              ) : (
-                <>
-                  ℹ️ <strong>TikTok only:</strong>{" "}
-                  {tiktokUseSound ? "Thử chọn nhạc trending trên TikTok." : "Đăng video mà không thêm nhạc TikTok."}
-                </>
-              )}
-            </div>
-          </fieldset>
-        )}
+                )}
+              </div>
+            </fieldset>
+          )}
 
-        {platforms.includes("YOUTUBE") && (
-          <fieldset className="platform-settings">
-            <legend>YouTube Config</legend>
-            <label className="field">
-              <span>Chế độ đăng</span>
-              <select name="youtubePublishMode" defaultValue="PUBLIC">
-                <option value="PUBLIC">Public (Công khai)</option>
-                <option value="DRAFT">Draft / Private (Riêng tư)</option>
-              </select>
-            </label>
-          </fieldset>
-        )}
-
-        {platforms.includes("FACEBOOK") && (
-          <fieldset className="platform-settings">
-            <legend>Facebook Config</legend>
-            <div className="settings-grid">
+          {platforms.includes("YOUTUBE") && (
+            <fieldset className="platform-settings">
+              <legend>YouTube Config</legend>
               <label className="field">
                 <span>Chế độ đăng</span>
-                <select name="facebookPublishMode" defaultValue="PUBLIC">
+                <select name="youtubePublishMode" defaultValue="PUBLIC">
                   <option value="PUBLIC">Public (Công khai)</option>
-                  <option value="DRAFT">Draft (Bản nháp)</option>
+                  <option value="DRAFT">Draft / Private (Riêng tư)</option>
                 </select>
               </label>
+            </fieldset>
+          )}
 
-              <label className="field">
-                <span>Loại bài đăng</span>
-                <select name="facebookContentType" defaultValue="REEL">
-                  <option value="REEL">Reel</option>
-                  <option value="VIDEO_POST">Video Feed</option>
-                </select>
-              </label>
-            </div>
-          </fieldset>
-        )}
+          {platforms.includes("FACEBOOK") && (
+            <fieldset className="platform-settings">
+              <legend>Facebook Config</legend>
+              <div className="settings-grid">
+                <label className="field">
+                  <span>Chế độ đăng</span>
+                  <select name="facebookPublishMode" defaultValue="PUBLIC">
+                    <option value="PUBLIC">Public (Công khai)</option>
+                    <option value="DRAFT">Draft (Bản nháp)</option>
+                  </select>
+                </label>
 
-        <label className="field">
-          <span>Thời gian xuất bản</span>
-          <input name="publishAtLocal" type="datetime-local" defaultValue={defaultPublishAt} required />
-        </label>
+                <label className="field">
+                  <span>Loại bài đăng</span>
+                  <select name="facebookContentType" defaultValue="REEL">
+                    <option value="REEL">Reel</option>
+                    <option value="VIDEO_POST">Video Feed</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+          )}
 
-        <div className="form-actions">
-          <button className="primary-button" type="submit" disabled={loading}>
-            {loading ? "Đang xử lý..." : "🚀 Upload và Tạo Lịch"}
-          </button>
+          <div className="form-actions">
+            <button className="primary-button" type="submit" disabled={loading}>
+              {loading ? "Đang xử lý..." : "🚀 Upload và Tạo Lịch"}
+            </button>
+          </div>
         </div>
       </form>
 

@@ -3,32 +3,15 @@
  *
  * Design Goals:
  * - Single Full-Width Creation Card with Tab Switcher ([Upload Single] | [Bulk Import]).
+ * - Left Column: Title, Caption, Hashtags, Video File, Publish Time.
+ * - Right Column: Platform Selection (TikTok, YouTube, Facebook), Platform Configs, Action Button.
  * - Compact vertical density so the entire upload form + queue table fit above the fold without scrolling.
- * - Clear, readable 2-column input layout for single upload.
  */
 
 /* Container: max 1440px centered */
 main {
   width: min(1440px, calc(100% - 48px));
   margin: 20px auto 60px;
-}
-
-/* Compact Hero Header */
-.hero.hero-compact {
-  padding: 18px 28px;
-  margin-bottom: 20px;
-  border-radius: var(--radius-lg);
-}
-
-.hero-compact h1 {
-  font-size: 24px;
-  margin-bottom: 0;
-}
-
-.hero-compact .eyebrow {
-  margin-bottom: 4px;
-  font-size: 11px;
-  padding: 3px 10px;
 }
 
 /* Tabbed Creation Card */
@@ -39,7 +22,7 @@ main {
 }
 
 .creation-tab-header {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 12px;
   display: flex;
@@ -74,11 +57,19 @@ main {
   box-shadow: 0 4px 10px rgba(99, 102, 241, 0.16);
 }
 
-/* Form Density Adjustments */
-.upload-form-wrapper .form-grid {
+/* 2-Column Form Layout: Left (Metadata & File) | Right (Platforms & Configs) */
+.two-column-upload-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.form-col-left,
+.form-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .upload-form-wrapper input[type="text"],
@@ -90,9 +81,10 @@ main {
 }
 
 .upload-form-wrapper textarea {
-  min-height: 72px;
+  min-height: 84px;
   padding: 10px 14px;
   font-size: 14px;
+  resize: vertical;
 }
 
 .upload-form-wrapper input[type="file"] {
@@ -104,7 +96,7 @@ main {
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .platform-option {
@@ -135,10 +127,17 @@ main {
   font-size: 13px;
 }
 
+.form-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .primary-button {
-  min-height: 44px;
-  padding: 10px 24px;
-  font-size: 14.5px;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 24px;
+  font-size: 15px;
 }
 
 /* Video List Card */
@@ -153,7 +152,7 @@ main {
 
 /* Media Queries for smaller screens */
 @media (max-width: 900px) {
-  .upload-form-wrapper .form-grid {
+  .two-column-upload-form {
     grid-template-columns: 1fr;
   }
 
@@ -169,7 +168,6 @@ main {
   }
 
   .creation-card,
-  .hero.hero-compact,
   .videos-card {
     padding: 16px 14px;
   }
