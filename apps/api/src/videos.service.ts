@@ -10,11 +10,13 @@ import { Queue } from "bullmq";
 import path from "node:path";
 import { PrismaService } from "./prisma.service.js";
 import { normalizeHashtags } from "./hashtags.js";
+import { normalizeDescription } from "./description.js";
 import { assertTransition } from "./job-state.js";
 import { BulkImportParseError, parseBulkImportText, stageImportedVideo } from "./bulk-import.js";
 import { parseBoolean } from "./parse-boolean.js";
 import { QUEUES, RERUNNABLE_VIDEO_STATUSES, STORAGE_DIR } from "./constants.js";
 import type { CreateVideoInput } from "./types.js";
+import type { UpdateVideoDto } from "./videos.dto.js";
 
 const connection = { url: process.env.REDIS_URL ?? "redis://localhost:6379" };
 const tiktokQueue = new Queue(QUEUES.tiktok, { connection });
@@ -57,6 +59,154 @@ export class VideosService {
     return video;
   }
 
+  async update(id: string, input: UpdateVideoDto) {
+    const video = await this.prisma.video.findUnique({
+      where: { id },
+      include: { jobs: true, publishJobs: true },
+    });
+    if (!video) throw new NotFoundException("video not found");
+
+    const BUSY_STATUSES = ["UPLOADING", "SETTING_SOUND", "PUBLISHING", "DOWNLOADING", "PUBLISHED"];
+    const isBusy =
+      video.jobs.some(j => BUSY_STATUSES.includes(j.status)) ||
+      video.publishJobs.some(j => BUSY_STATUSES.includes(j.status));
+
+    if (isBusy) {
+      throw new BadRequestException("Không thể chỉnh sửa video đang hoặc đã thực thi bài đăng.");
+    }
+
+    const videoUpdates: Record<string, any> = {};
+    if (input.title !== undefined) {
+      if (video.publishJobs.some(j => j.platform === Platform.YOUTUBE) && input.title.length > 100) {
+        throw new BadRequestException("YouTube title must be <= 100 characters");
+      }
+      videoUpdates.title = input.title;
+    }
+    if (input.description !== undefined) videoUpdates.description = normalizeDescription(input.description);
+    if (input.hashtags !== undefined) videoUpdates.hashtags = normalizeHashtags(input.hashtags);
+
+    const publishTime = input.publishAt ? new Date(input.publishAt) : undefined;
+    if (publishTime && Number.isNaN(publishTime.getTime())) {
+      throw new BadRequestException("publishAt is invalid");
+    }
+
+    if (Object.keys(videoUpdates).length > 0) {
+      await this.prisma.video.update({
+        where: { id },
+        data: videoUpdates,
+      });
+    }
+
+    const delay = publishTime ? delayUntil(publishTime) : undefined;
+
+    // Update TikTok Job
+    const tiktokJob = video.jobs[0];
+    if (tiktokJob) {
+      const tiktokUpdates: Record<string, any> = {};
+      if (input.tiktokPublishMode !== undefined) tiktokUpdates.publishMode = input.tiktokPublishMode;
+      if (input.tiktokUseSound !== undefined) tiktokUpdates.useSound = input.tiktokUseSound;
+      if (publishTime) tiktokUpdates.publishTime = publishTime;
+
+      if (Object.keys(tiktokUpdates).length > 0) {
+        await this.prisma.uploadJob.update({
+          where: { id: tiktokJob.id },
+          data: tiktokUpdates,
+        });
+      }
+
+      if (delay !== undefined) {
+        const existingJob = await tiktokQueue.getJob(tiktokJob.id);
+        if (existingJob) await existingJob.remove();
+        await tiktokQueue.add("tiktok-publish", { jobId: tiktokJob.id }, {
+          jobId: tiktokJob.id,
+          delay,
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        });
+      }
+    }
+
+    // Update Downstream Publish Jobs (Facebook / YouTube)
+    for (const pJob of video.publishJobs) {
+      const pUpdates: Record<string, any> = {};
+      if (publishTime) pUpdates.publishTime = publishTime;
+
+      if (pJob.platform === Platform.FACEBOOK) {
+        if (input.facebookPublishMode !== undefined) pUpdates.publishMode = input.facebookPublishMode;
+        if (input.facebookContentType !== undefined) pUpdates.facebookContentType = input.facebookContentType;
+        if (input.facebookUseTikTokSource !== undefined) {
+          pUpdates.useTikTokSource = input.facebookUseTikTokSource;
+          pUpdates.status = input.facebookUseTikTokSource ? PublishStatus.WAITING_TIKTOK_SOURCE : PublishStatus.SCHEDULED;
+        }
+      } else if (pJob.platform === Platform.YOUTUBE) {
+        if (input.youtubePublishMode !== undefined) pUpdates.publishMode = input.youtubePublishMode;
+        if (input.youtubeUseTikTokSource !== undefined) {
+          pUpdates.useTikTokSource = input.youtubeUseTikTokSource;
+          pUpdates.status = input.youtubeUseTikTokSource ? PublishStatus.WAITING_TIKTOK_SOURCE : PublishStatus.SCHEDULED;
+        }
+      }
+
+      if (Object.keys(pUpdates).length > 0) {
+        await this.prisma.publishJob.update({
+          where: { id: pJob.id },
+          data: pUpdates,
+        });
+      }
+
+      if (delay !== undefined && (pJob.status === PublishStatus.SCHEDULED || pJob.status === PublishStatus.READY_TO_RUN)) {
+        const q = publishQueue(pJob.platform);
+        const existingJob = await q.getJob(pJob.id);
+        if (existingJob) await existingJob.remove();
+        await q.add("publish", { publishJobId: pJob.id }, {
+          jobId: pJob.id,
+          delay,
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        });
+      }
+    }
+
+    return this.detail(id);
+  }
+
+  async remove(id: string) {
+    const video = await this.prisma.video.findUnique({
+      where: { id },
+      include: { jobs: true, publishJobs: true },
+    });
+    if (!video) throw new NotFoundException("video not found");
+
+    const BUSY_STATUSES = ["UPLOADING", "SETTING_SOUND", "PUBLISHING", "DOWNLOADING", "PUBLISHED"];
+    const isBusy =
+      video.jobs.some(j => BUSY_STATUSES.includes(j.status)) ||
+      video.publishJobs.some(j => BUSY_STATUSES.includes(j.status));
+
+    if (isBusy) {
+      throw new BadRequestException("Không thể xóa video đang hoặc đã thực thi bài đăng.");
+    }
+
+    for (const tiktokJob of video.jobs) {
+      const existingJob = await tiktokQueue.getJob(tiktokJob.id);
+      if (existingJob) await existingJob.remove();
+    }
+    for (const pJob of video.publishJobs) {
+      const q = publishQueue(pJob.platform);
+      const existingJob = await q.getJob(pJob.id);
+      if (existingJob) await existingJob.remove();
+    }
+
+    await this.prisma.$transaction(async tx => {
+      for (const tiktokJob of video.jobs) {
+        await tx.uploadJobAttempt.deleteMany({ where: { jobId: tiktokJob.id } });
+      }
+      await tx.uploadJob.deleteMany({ where: { videoId: id } });
+      await tx.publishJob.deleteMany({ where: { videoId: id } });
+      await tx.video.delete({ where: { id } });
+    });
+
+    return { ok: true, id };
+  }
+
   async create(input: CreateVideoInput) {
     const platforms = normalizePlatforms(input.platforms);
     const publishTime = normalizePublishTime(input.publishAt);
@@ -93,7 +243,7 @@ export class VideosService {
       const video = await tx.video.create({
         data: {
           title: input.title,
-          description: input.description,
+          description: normalizeDescription(input.description),
           hashtags: normalizeHashtags(input.hashtags),
           sourcePath: input.sourcePath,
           status: platforms.includes(Platform.TIKTOK) ? VideoStatus.QUEUED : VideoStatus.UPLOADED,
@@ -234,7 +384,7 @@ export class VideosService {
     });
     await this.prisma.video.update({ where: { id: job.videoId }, data: { status: VideoStatus.QUEUED } });
     await tiktokQueue.add("tiktok-publish", { jobId }, {
-      jobId: `${jobId}:retry:${updated.retryCount}`,
+      jobId: `${jobId}-retry-${updated.retryCount}`,
       delay: delayUntil(job.publishTime ?? new Date()),
       removeOnComplete: 100,
       removeOnFail: 100,
@@ -268,7 +418,7 @@ export class VideosService {
       },
     });
     await publishQueue(updated.platform).add("publish", { publishJobId: updated.id }, {
-      jobId: `${updated.id}:retry:${updated.retryCount}`,
+      jobId: `${updated.id}-retry-${updated.retryCount}`,
       delay: delayUntil(updated.publishTime ?? new Date()),
       removeOnComplete: 100,
       removeOnFail: 100,

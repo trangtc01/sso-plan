@@ -63,6 +63,59 @@ export class CreateVideoDto {
   tiktokUseSound = true;
 }
 
+export class UpdateVideoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => parseJsonArray(value, undefined))
+  @IsArray()
+  @IsString({ each: true })
+  hashtags?: string[];
+
+  @IsOptional()
+  @IsISO8601()
+  publishAt?: string;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  facebookPublishMode?: PublishMode;
+
+  @IsOptional()
+  @IsEnum(FacebookContentType)
+  facebookContentType?: FacebookContentType;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, false))
+  @IsBoolean()
+  facebookUseTikTokSource?: boolean;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  youtubePublishMode?: PublishMode;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, false))
+  @IsBoolean()
+  youtubeUseTikTokSource?: boolean;
+
+  @IsOptional()
+  @IsEnum(PublishMode)
+  tiktokPublishMode?: PublishMode;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value, true))
+  @IsBoolean()
+  tiktokUseSound?: boolean;
+}
+
 export class RerunDto {
   @IsOptional()
   @IsBoolean()

@@ -10,11 +10,12 @@ export function BulkImportForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setLoading(true);
     setMessageType("info");
     setMessage("Đang đọc và import danh sách video...");
 
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     try {
       const response = await fetch(`${api}/videos/import`, { method: "POST", body: form });
       const body = await response.json().catch(() => null);
@@ -24,7 +25,7 @@ export function BulkImportForm() {
 
       setMessageType(body.failed ? "error" : "success");
       setMessage(`✨ Import hoàn tất: ${body.created}/${body.total} video thành công, ${body.failed} lỗi.`);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Import thất bại");

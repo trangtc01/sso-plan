@@ -24,11 +24,14 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - bulk TXT (tab-separated) and CSV import supporting extended 13-column format (`video_path,title,description,hashtags,platforms,publish_at,tiktok_mode,tiktok_use_sound,facebook_mode,facebook_type,facebook_use_tiktok_source,youtube_mode,youtube_use_tiktok_source`)
 - video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`) and live status pulse indicators
 - line-clamped error text column formatting (`word-break: break-word; overflow-wrap: anywhere`) preventing table layout breakage
-- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, Facebook Preview (thumbnail + direct permalink url `https://www.facebook.com/watch/?v=...`), direct platform web links (TikTok Studio Drafts tab / YouTube Studio), embedded in-browser HTML5 video player via HTTP 206 video streaming (`GET /videos/:id/stream`), and clickable local file path link label
+- Claymorphism Video Detail Modal (`DetailModal`) displaying complete video metadata, per-platform execution status, full error traces, raw JSON responses, Facebook Preview (thumbnail + direct permalink url `https://www.facebook.com/watch/?v=...`), direct platform web links (TikTok Studio Drafts tab / YouTube Studio), embedded in-browser HTML5 video player via HTTP 206 video streaming (`GET /videos/:id/stream`), clickable local file path link label, inline video & schedule editing (`✏️ Sửa`), and pending video deletion (`🗑️ Xóa`)
 - FFmpeg MP4 transcoding utility (`src/ffmpeg.ts`) ensuring all uploaded/staged non-MP4 videos (`.mov`, `.avi`, etc.) are automatically converted to standard H.264 / AAC MP4 format with faststart flags before social media distribution
 
 
 ### API / scheduling
+- `PATCH /videos/:id` endpoint allowing real-time updates to video title, description, hashtags, publish time schedule, and per-platform configuration (TikTok, Facebook, YouTube) for queued videos before execution, automatically recalculating and updating BullMQ delayed jobs
+- `DELETE /videos/:id` endpoint allowing safe deletion of queued/pending videos, automatically cleaning up BullMQ delayed jobs and Prisma database records
+- description normalization module (`apps/api/src/description.ts`) automatically appending Website, Android, and iOS store link footers to all created/updated video descriptions if not already present
 - creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
 - TikTok uses `UploadJob` with `publishTime`, `publishMode` (`DRAFT`/`PUBLIC`), and `useSound` (`Boolean`)
 - robust `parseBoolean` module (`apps/api/src/parse-boolean.ts`) used across DTO transformers and `VideosService.create` to ensure string/array values (e.g. `"false"`) sent via multipart form data evaluate properly as boolean `false` instead of truthy strings

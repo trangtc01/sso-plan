@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type { PublishJob, TikTokJob, Video, VideoPage } from "./types.js";
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -205,6 +205,18 @@ export function VideoList() {
                           🔄 Rerun {label(job.platform)}
                         </button>
                       ))}
+
+                      {(!video.jobs.some(j => ["UPLOADING", "SETTING_SOUND", "PUBLISHING", "DOWNLOADING", "PUBLISHED"].includes(j.status)) &&
+                        !video.publishJobs.some(j => ["UPLOADING", "SETTING_SOUND", "PUBLISHING", "DOWNLOADING", "PUBLISHED"].includes(j.status))) && (
+                        <button
+                          className="secondary-button"
+                          style={{ borderColor: "#fca5a5", color: "#dc2626" }}
+                          title="Xóa video khỏi hàng chờ"
+                          onClick={() => deleteVideo(video.id)}
+                        >
+                          🗑️ Xóa
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -233,6 +245,15 @@ export function VideoList() {
           previewing={previewing}
           onRerunTikTok={rerunTikTok}
           onRerunPublish={rerunPublish}
+          onVideoUpdated={() => {
+            load();
+            if (selectedVideoId) {
+              fetch(`${api}/videos/${selectedVideoId}`)
+                .then(res => res.ok ? res.json() : null)
+                .then(data => data && setSelectedVideo(data));
+            }
+          }}
+          onDeleteVideo={(id) => deleteVideo(id)}
         />
       )}
     </section>
@@ -246,6 +267,8 @@ function DetailModal({
   previewing,
   onRerunTikTok,
   onRerunPublish,
+  onVideoUpdated,
+  onDeleteVideo,
 }: {
   video: Video | null;
   onClose: () => void;
@@ -253,7 +276,14 @@ function DetailModal({
   previewing: boolean;
   onRerunTikTok: (job: TikTokJob) => void;
   onRerunPublish: (job: PublishJob) => void;
+  onVideoUpdated?: () => void;
+  onDeleteVideo?: (id: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
+
   if (!video) {
     return (
       <div className="modal-overlay" onClick={onClose}>
@@ -271,24 +301,264 @@ function DetailModal({
   }
 
   const tiktokJob = video.jobs[0];
+  const facebookJob = video.publishJobs.find(j => j.platform === "FACEBOOK");
   const youtubeJob = video.publishJobs.find(j => j.platform === "YOUTUBE");
+
+  const BUSY_STATUSES = ["UPLOADING", "SETTING_SOUND", "PUBLISHING", "DOWNLOADING", "PUBLISHED"];
+  const isEditable =
+    !video.jobs.some(j => BUSY_STATUSES.includes(j.status)) &&
+    !video.publishJobs.some(j => BUSY_STATUSES.includes(j.status));
+
+  const defaultPublishTime = tiktokJob?.publishTime || facebookJob?.publishTime || youtubeJob?.publishTime || video.createdAt;
+
+  async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!video) return;
+    setSaving(true);
+    setEditError("");
+    setEditSuccess("");
+
+    const form = new FormData(event.currentTarget);
+    const title = String(form.get("title") ?? "").trim();
+    const description = String(form.get("description") ?? "").trim();
+    const hashtagsText = String(form.get("hashtagsText") ?? "");
+    const hashtags = hashtagsText.split(",").map(t => t.trim().replace(/^#/, "")).filter(Boolean);
+    const publishAtLocal = String(form.get("publishAtLocal") ?? "");
+    const publishAt = publishAtLocal ? new Date(publishAtLocal).toISOString() : undefined;
+
+    const payload: Record<string, unknown> = { title, description, hashtags, publishAt };
+
+    if (tiktokJob) {
+      payload.tiktokPublishMode = form.get("tiktokPublishMode");
+      payload.tiktokUseSound = form.get("tiktokUseSound") === "true";
+    }
+
+    if (facebookJob) {
+      payload.facebookPublishMode = form.get("facebookPublishMode");
+      payload.facebookContentType = form.get("facebookContentType");
+      payload.facebookUseTikTokSource = form.get("facebookUseTikTokSource") === "true";
+    }
+
+    if (youtubeJob) {
+      payload.youtubePublishMode = form.get("youtubePublishMode");
+      payload.youtubeUseTikTokSource = form.get("youtubeUseTikTokSource") === "true";
+    }
+
+    try {
+      const res = await fetch(`${api}/videos/${video.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = body?.message ? (Array.isArray(body.message) ? body.message.join(", ") : body.message) : "Cập nhật thất bại";
+        throw new Error(msg);
+      }
+
+      setEditSuccess("✨ Cập nhật thông tin và lên lại lịch thành công!");
+      setIsEditing(false);
+      onVideoUpdated?.();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Cập nhật thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h3>Chi Tiết Video & Tiến Trình</h3>
+            <h3>{isEditing ? "✏️ Chỉnh Sửa Video & Lịch Đăng" : "Chi Tiết Video & Tiến Trình"}</h3>
             <small style={{ color: "#64748b" }}>ID: {video.id}</small>
           </div>
           <button className="modal-close-btn" onClick={onClose}>✕</button>
         </div>
 
-        <div className="modal-body">
-          {/* Section 1: Overview & Local Video Preview */}
-          <div className="modal-section">
-            <div className="modal-section-title">📌 THÔNG TIN TỔNG QUAN</div>
-            <div className="modal-grid">
+        {editSuccess && <div className="form-message form-message-success" style={{ margin: "12px 20px 0" }}>{editSuccess}</div>}
+
+        {isEditing ? (
+          <form className="modal-body" onSubmit={handleSaveEdit}>
+            {editError && <div className="form-message form-message-error">{editError}</div>}
+
+            <div className="modal-section">
+              <div className="modal-section-title">📌 THÔNG TIN VIDEO GỐC</div>
+              <div className="form-col-left" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <label className="field">
+                  <span>Tiêu đề video</span>
+                  <input name="title" type="text" defaultValue={video.title} required maxLength={200} />
+                </label>
+                <label className="field">
+                  <span>Mô tả / Caption</span>
+                  <textarea name="description" defaultValue={video.description} maxLength={4000} />
+                </label>
+                <label className="field">
+                  <span>Hashtags (phân cách bằng dấu phẩy)</span>
+                  <input name="hashtagsText" type="text" defaultValue={video.hashtags.join(", ")} />
+                </label>
+                <label className="field">
+                  <span>Thời gian xuất bản</span>
+                  <input name="publishAtLocal" type="datetime-local" defaultValue={toLocalInputValue(defaultPublishTime)} required />
+                </label>
+              </div>
+            </div>
+
+            {tiktokJob && (
+              <fieldset className="platform-settings" style={{ marginTop: "12px" }}>
+                <legend>🎵 TikTok Config</legend>
+                <div className="settings-grid">
+                  <div className="field">
+                    <span>Chế độ đăng</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="tiktokPublishMode" value="DRAFT" defaultChecked={tiktokJob.publishMode === "DRAFT"} />
+                        <span>Draft (Nháp)</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="tiktokPublishMode" value="PUBLIC" defaultChecked={tiktokJob.publishMode === "PUBLIC"} />
+                        <span>Public</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <span>Lấy nhạc từ TikTok</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="tiktokUseSound" value="true" defaultChecked={tiktokJob.useSound === true} />
+                        <span>Có (chọn nhạc)</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="tiktokUseSound" value="false" defaultChecked={tiktokJob.useSound === false} />
+                        <span>Không (video gốc)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+            )}
+
+            {facebookJob && (
+              <fieldset className="platform-settings" style={{ marginTop: "12px" }}>
+                <legend>📘 Facebook Config</legend>
+                <div className="settings-grid">
+                  <div className="field">
+                    <span>Chế độ đăng</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="facebookPublishMode" value="PUBLIC" defaultChecked={(facebookJob.publishMode ?? "PUBLIC") === "PUBLIC"} />
+                        <span>Public</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="facebookPublishMode" value="DRAFT" defaultChecked={facebookJob.publishMode === "DRAFT"} />
+                        <span>Draft (Nháp)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <span>Định dạng</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="facebookContentType" value="REEL" defaultChecked={(facebookJob.facebookContentType ?? "REEL") === "REEL"} />
+                        <span>Reel</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="facebookContentType" value="VIDEO_POST" defaultChecked={facebookJob.facebookContentType === "VIDEO_POST"} />
+                        <span>Video Feed</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <span>Nguồn video</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="facebookUseTikTokSource" value="false" defaultChecked={!facebookJob.useTikTokSource} />
+                        <span>Video gốc</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="facebookUseTikTokSource" value="true" defaultChecked={facebookJob.useTikTokSource} />
+                        <span>Video từ TikTok</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+            )}
+
+            {youtubeJob && (
+              <fieldset className="platform-settings" style={{ marginTop: "12px" }}>
+                <legend>🔴 YouTube Config</legend>
+                <div className="settings-grid">
+                  <div className="field">
+                    <span>Chế độ đăng</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="youtubePublishMode" value="PUBLIC" defaultChecked={(youtubeJob.publishMode ?? "PUBLIC") === "PUBLIC"} />
+                        <span>Public</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="youtubePublishMode" value="DRAFT" defaultChecked={youtubeJob.publishMode === "DRAFT"} />
+                        <span>Private (Riêng tư)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <span>Nguồn video</span>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input type="radio" name="youtubeUseTikTokSource" value="false" defaultChecked={!youtubeJob.useTikTokSource} />
+                        <span>Video gốc</span>
+                      </label>
+                      <label className="radio-option">
+                        <input type="radio" name="youtubeUseTikTokSource" value="true" defaultChecked={youtubeJob.useTikTokSource} />
+                        <span>Video từ TikTok</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <button className="primary-button" type="submit" disabled={saving}>
+                {saving ? "Đang lưu..." : "💾 Lưu Cập Nhật"}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setIsEditing(false)} disabled={saving}>
+                ✕ Hủy
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="modal-body">
+            {/* Section 1: Overview & Local Video Preview */}
+            <div className="modal-section">
+              <div className="modal-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>📌 THÔNG TIN TỔNG QUAN</span>
+                {isEditable ? (
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      className="secondary-button"
+                      style={{ fontSize: "11px", padding: "4px 10px" }}
+                      onClick={() => setIsEditing(true)}
+                    >
+                      ✏️ Sửa
+                    </button>
+                    <button
+                      className="secondary-button"
+                      style={{ fontSize: "11px", padding: "4px 10px", borderColor: "#fca5a5", color: "#dc2626" }}
+                      onClick={() => onDeleteVideo?.(video.id)}
+                    >
+                      🗑️ Xóa
+                    </button>
+                  </div>
+                ) : (
+                  <span className="muted" style={{ fontSize: "11px", textTransform: "none", fontWeight: 400 }}>
+                    🔒 Không thể sửa/xóa (Đang/Đã đăng)
+                  </span>
+                )}
+              </div>
+              <div className="modal-grid">
               <div className="modal-field">
                 <label>Tiêu đề</label>
                 <span><strong>{video.title || "(Chưa đặt)"}</strong></span>
@@ -512,6 +782,7 @@ function DetailModal({
             );
           })}
         </div>
+        )}
 
         <div className="modal-footer">
           <button className="primary-button" onClick={onClose}>
@@ -601,4 +872,12 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined;
+}
+
+function toLocalInputValue(dateInput?: string | Date): string {
+  if (!dateInput) return "";
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (v: number) => String(v).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }

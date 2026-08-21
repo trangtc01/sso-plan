@@ -2,10 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -19,7 +21,7 @@ import type { Request, Response } from "express";
 import { diskStorage, memoryStorage } from "multer";
 import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { CreateVideoDto, RerunDto } from "./videos.dto.js";
+import { CreateVideoDto, RerunDto, UpdateVideoDto } from "./videos.dto.js";
 import { VideosService } from "./videos.service.js";
 
 const uploadDir = path.resolve(process.env.VIDEO_STORAGE_DIR ?? ".tiktok-automation/uploads");
@@ -78,6 +80,16 @@ export class VideosController {
   @Get(":id")
   detail(@Param("id") id: string) {
     return this.videos.detail(id);
+  }
+
+  @Patch(":id")
+  update(@Param("id") id: string, @Body() body: UpdateVideoDto) {
+    return this.videos.update(id, body);
+  }
+
+  @Delete(":id")
+  remove(@Param("id") id: string) {
+    return this.videos.remove(id);
   }
 
   @Post()

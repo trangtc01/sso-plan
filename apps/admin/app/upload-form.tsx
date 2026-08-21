@@ -98,7 +98,7 @@ export function UploadForm() {
     setMessageType("info");
     setMessage("Đang upload video và tạo lịch...");
 
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const hashtags = String(form.get("hashtagsText") ?? "")
       .split(",")
       .map(value => value.trim().replace(/^#/, ""))
@@ -129,7 +129,7 @@ export function UploadForm() {
       const body = await response.text();
       if (!response.ok) throw new Error(body);
 
-      event.currentTarget.reset();
+      formElement.reset();
       setPlatforms(["TIKTOK"]);
       setTiktokPublishMode("DRAFT");
       setTiktokUseSound(true);
@@ -139,7 +139,6 @@ export function UploadForm() {
       setFacebookContentType("REEL");
       setFacebookUseTikTokSource(false);
       setMessageType("success");
-      setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
       setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
     } catch (error) {
       setMessageType("error");

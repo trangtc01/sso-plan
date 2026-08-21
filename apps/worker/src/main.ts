@@ -286,7 +286,7 @@ async function releaseDownstream(
     const queue = updated.platform === Platform.FACEBOOK ? facebookQueue : youtubeQueue;
     try {
       await queue.add("publish", { publishJobId: updated.id }, {
-        jobId: `${updated.id}:after-tiktok`,
+        jobId: `${updated.id}-after-tiktok`,
         removeOnComplete: 100,
         removeOnFail: 100,
       });
