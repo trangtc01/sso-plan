@@ -272,7 +272,7 @@ export class VideosService {
       targetUrl = video.tiktokPublishedUrl || "https://www.tiktok.com/tiktokstudio/upload";
       userDataDir = path.resolve(process.env.TIKTOK_PROFILE_DIR ?? "./.tiktok-automation/profile");
     } else if (mode === "youtube") {
-      targetUrl = "https://studio.youtube.com";
+      targetUrl = process.env.YOUTUBE_PREVIEW_URL || "https://studio.youtube.com";
       userDataDir = path.resolve(process.env.YOUTUBE_PROFILE_DIR ?? "./.social-automation/youtube-profile");
     } else {
       const filePath = video.outputPath || video.sourcePath;

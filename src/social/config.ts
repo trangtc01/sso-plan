@@ -13,6 +13,7 @@ export interface YoutubePlaywrightConfig {
   profileDir: string;
   artifactDir: string;
   uploadUrl: string;
+  previewUrl: string;
   chromeExecutablePath?: string;
   chromeProfileDirectory?: string;
   defaultPrivacy: YoutubePrivacy;
@@ -44,6 +45,7 @@ export function loadYoutubePlaywrightConfig(env = process.env): YoutubePlaywrigh
     profileDir: resolveUserPath(env.YOUTUBE_PROFILE_DIR ?? "~/.sso-plan/youtube-profile"),
     artifactDir: resolveUserPath(env.YOUTUBE_ARTIFACT_DIR ?? ".social-automation/youtube-artifacts"),
     uploadUrl: env.YOUTUBE_UPLOAD_URL?.trim() || "https://studio.youtube.com",
+    previewUrl: env.YOUTUBE_PREVIEW_URL?.trim() || "https://studio.youtube.com",
     chromeExecutablePath: env.YOUTUBE_CHROME_EXECUTABLE?.trim() || defaultChromeExecutable(),
     chromeProfileDirectory: env.YOUTUBE_CHROME_PROFILE_DIRECTORY?.trim() || "Default",
     defaultPrivacy: privacy,
