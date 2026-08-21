@@ -217,7 +217,7 @@ export function UploadForm() {
                         checked={tiktokPublishMode === "DRAFT"}
                         onChange={() => setTiktokPublishMode("DRAFT")}
                       />
-                      <span>Draft (Bản nháp)</span>
+                      <span>Draft (Nháp)</span>
                     </label>
                     <label className={`radio-option ${tiktokPublishMode === "PUBLIC" ? "selected" : ""}`}>
                       <input
@@ -227,7 +227,7 @@ export function UploadForm() {
                         checked={tiktokPublishMode === "PUBLIC"}
                         onChange={() => setTiktokPublishMode("PUBLIC")}
                       />
-                      <span>Public (Công khai)</span>
+                      <span>Public</span>
                     </label>
                   </div>
                 </div>
@@ -246,7 +246,7 @@ export function UploadForm() {
                           if (hasDownstream) setTiktokPublishMode("PUBLIC");
                         }}
                       />
-                      <span>Có — tự chọn nhạc</span>
+                      <span>Có (chọn nhạc)</span>
                     </label>
                     <label className={`radio-option ${!tiktokUseSound ? "selected" : ""}`}>
                       <input
@@ -256,7 +256,7 @@ export function UploadForm() {
                         checked={!tiktokUseSound}
                         onChange={() => setTiktokUseSound(false)}
                       />
-                      <span>Không — giữ video gốc</span>
+                      <span>Không (video gốc)</span>
                     </label>
                   </div>
                 </div>
@@ -297,7 +297,7 @@ export function UploadForm() {
                       checked={youtubePublishMode === "PUBLIC"}
                       onChange={() => setYoutubePublishMode("PUBLIC")}
                     />
-                    <span>Public (Công khai)</span>
+                    <span>Public</span>
                   </label>
                   <label className={`radio-option ${youtubePublishMode === "DRAFT" ? "selected" : ""}`}>
                     <input
@@ -307,7 +307,7 @@ export function UploadForm() {
                       checked={youtubePublishMode === "DRAFT"}
                       onChange={() => setYoutubePublishMode("DRAFT")}
                     />
-                    <span>Draft / Private (Riêng tư)</span>
+                    <span>Private (Riêng tư)</span>
                   </label>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export function UploadForm() {
                         checked={facebookPublishMode === "PUBLIC"}
                         onChange={() => setFacebookPublishMode("PUBLIC")}
                       />
-                      <span>Public (Công khai)</span>
+                      <span>Public</span>
                     </label>
                     <label className={`radio-option ${facebookPublishMode === "DRAFT" ? "selected" : ""}`}>
                       <input
@@ -339,7 +339,7 @@ export function UploadForm() {
                         checked={facebookPublishMode === "DRAFT"}
                         onChange={() => setFacebookPublishMode("DRAFT")}
                       />
-                      <span>Draft (Bản nháp)</span>
+                      <span>Draft (Nháp)</span>
                     </label>
                   </div>
                 </div>

@@ -5,7 +5,7 @@
  * - Single Full-Width Creation Card with Tab Switcher ([Upload Single] | [Bulk Import]).
  * - Left Column: Title, Caption, Hashtags, Video File, Publish Time, Submit Button.
  * - Right Column: Platform Selection (TikTok, YouTube, Facebook), Platform Configs (Radio Groups).
- * - All Radio option buttons stay strictly on 1 single horizontal row without wrapping.
+ * - All Config Settings (Chế độ đăng, Lấy nhạc, Loại bài) sit SIDE-BY-SIDE on 1 horizontal line.
  */
 
 /* Container: max 1440px centered */
@@ -162,7 +162,7 @@ input[type="file"]:hover {
 
 .platform-settings {
   padding: 14px 16px;
-  gap: 12px;
+  gap: 10px;
 }
 
 .platform-settings legend {
@@ -170,9 +170,10 @@ input[type="file"]:hover {
   padding: 3px 12px;
 }
 
+/* Side-by-Side 2-Column Settings Grid */
 .settings-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -181,7 +182,7 @@ input[type="file"]:hover {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   margin-top: 4px;
 }
@@ -189,12 +190,12 @@ input[type="file"]:hover {
 .radio-option {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 5px;
+  padding: 5px 9px;
   background: var(--surface-clay-subtle);
   border: 1.5px solid var(--border-subtle);
   border-radius: var(--radius-pill);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--text-primary);
   cursor: pointer;
@@ -210,8 +211,8 @@ input[type="file"]:hover {
 
 .radio-option input[type="radio"] {
   accent-color: var(--primary-600);
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
 }
 
@@ -275,6 +276,10 @@ input[type="file"]:hover {
   .tab-btn {
     padding: 6px 12px;
     font-size: 12.5px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 
   .radio-group {
