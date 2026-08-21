@@ -39,14 +39,16 @@ type VideoPage = { items: Video[]; total: number };
 export function VideoList() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const load = () => fetch(`${api}/videos`)
-    .then(response => response.ok ? response.json() : Promise.reject(new Error("Không tải được videos")))
+    .then(response => response.ok ? response.json() : Promise.reject(new Error("Không tải được dữ liệu danh sách video")))
     .then((page: VideoPage) => {
       setVideos(page.items);
       setError("");
     })
-    .catch(e => setError(e.message));
+    .catch(e => setError(e.message))
+    .finally(() => setLoading(false));
 
   useEffect(() => {
     load();
@@ -82,11 +84,11 @@ export function VideoList() {
     <section className="card videos-card">
       <div className="section-heading section-heading-row">
         <div>
-          <p className="eyebrow">QUEUE / HISTORY</p>
-          <h2>Videos</h2>
-          <p className="section-description">Tự refresh mỗi 5 giây.</p>
+          <span className="eyebrow">QUEUE & MONITORING</span>
+          <h2>Danh Sách Video & Trạng Thái</h2>
+          <p className="section-description">Hệ thống tự động cập nhật tiến trình mỗi 5 giây.</p>
         </div>
-        <span className="count-badge">{videos.length} items</span>
+        <span className="count-badge">Tổng số: {videos.length} video</span>
       </div>
 
       {error && <div className="form-message form-message-error">{error}</div>}
@@ -95,11 +97,11 @@ export function VideoList() {
         <table className="videos-table">
           <thead>
             <tr>
-              <th>Video</th>
-              <th>Metadata</th>
-              <th>Lịch / nền tảng</th>
-              <th>Status / lỗi</th>
-              <th>Action</th>
+              <th>Thông Tin Video</th>
+              <th>Mô Tả & Tags</th>
+              <th>Tiến Trình Theo Nền Tảng</th>
+              <th>Chi Tiết / Lỗi</th>
+              <th>Thao Tác</th>
             </tr>
           </thead>
           <tbody>
@@ -107,28 +109,30 @@ export function VideoList() {
               const tiktokJob = video.jobs[0];
               return (
                 <tr key={video.id}>
-                  <td>
-                    <strong className="video-title">{video.title || "(Không có title)"}</strong>
-                    <small>{new Date(video.createdAt).toLocaleString()}</small>
+                  <td style={{ minWidth: "220px" }}>
+                    <strong className="video-title">{video.title || "(Chưa đặt tiêu đề)"}</strong>
+                    <small style={{ display: "block", marginBottom: "6px" }}>
+                      📅 {new Date(video.createdAt).toLocaleString()}
+                    </small>
                     <StatusBadge status={video.status} />
                   </td>
 
                   <td>
                     <div className="metadata-description">{video.description || "—"}</div>
                     {video.hashtags.length > 0 && (
-                      <small className="hashtags">
+                      <span className="hashtags">
                         {video.hashtags.map(tag => `#${tag}`).join(" ")}
-                      </small>
+                      </span>
                     )}
                   </td>
 
-                  <td>
+                  <td style={{ minWidth: "260px" }}>
                     {tiktokJob && (
                       <JobLine
                         name={`TikTok ${tiktokJob.publishMode}`}
                         time={tiktokJob.publishTime}
                         status={tiktokJob.status}
-                        detail={tiktokJob.useSound ? "có nhạc" : "không nhạc"}
+                        detail={tiktokJob.useSound ? "có nhạc" : "gốc"}
                       />
                     )}
 
@@ -146,7 +150,7 @@ export function VideoList() {
                   <td>
                     {!tiktokJob?.errorMessage &&
                       !video.publishJobs.some(job => job.errorMessage) && (
-                        <span className="muted">Không có lỗi</span>
+                        <span className="muted">Bình thường</span>
                       )}
 
                     {tiktokJob?.errorMessage && (
@@ -168,7 +172,7 @@ export function VideoList() {
                     <div className="action-stack">
                       {tiktokJob && ["FAILED", "LOGIN_REQUIRED", "AMBIGUOUS"].includes(tiktokJob.status) && (
                         <button className="secondary-button" onClick={() => rerunTikTok(tiktokJob)}>
-                          Rerun TikTok
+                          🔄 Rerun TikTok
                         </button>
                       )}
                       {video.publishJobs.filter(job => job.status === "FAILED").map(job => (
@@ -177,7 +181,7 @@ export function VideoList() {
                           key={job.id}
                           onClick={() => rerunPublish(job)}
                         >
-                          Rerun {label(job.platform)}
+                          🔄 Rerun {label(job.platform)}
                         </button>
                       ))}
                     </div>
@@ -188,7 +192,9 @@ export function VideoList() {
 
             {!videos.length && (
               <tr>
-                <td colSpan={5} className="empty-state">Chưa có video.</td>
+                <td colSpan={5} className="empty-state">
+                  {loading ? "Đang tải dữ liệu..." : "Chưa có video nào trong hàng đợi."}
+                </td>
               </tr>
             )}
           </tbody>
@@ -215,7 +221,7 @@ function JobLine({
         <strong>{name}</strong>
         {detail && <span className="job-detail"> · {detail}</span>}
       </div>
-      <small>{time ? new Date(time).toLocaleString() : "ngay"}</small>
+      <small>{time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Ngay"}</small>
       <StatusBadge status={status} />
     </div>
   );

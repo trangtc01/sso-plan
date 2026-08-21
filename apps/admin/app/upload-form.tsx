@@ -2,15 +2,39 @@
 import { FormEvent, useMemo, useState } from "react";
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-const PLATFORM_OPTIONS = [
-  { value: "TIKTOK", label: "TikTok", hint: "Đăng trước khi có nền tảng khác" },
-  { value: "YOUTUBE", label: "YouTube", hint: "YouTube Studio / Playwright" },
-  { value: "FACEBOOK", label: "Facebook", hint: "Reel hoặc video post" },
-] as const;
+
+interface PlatformConfig {
+  value: "TIKTOK" | "YOUTUBE" | "FACEBOOK";
+  label: string;
+  hint: string;
+  colorClass: string;
+}
+
+const PLATFORM_OPTIONS: PlatformConfig[] = [
+  {
+    value: "TIKTOK",
+    label: "TikTok",
+    hint: "Đăng trước khi có nền tảng khác",
+    colorClass: "platform-tiktok",
+  },
+  {
+    value: "YOUTUBE",
+    label: "YouTube",
+    hint: "YouTube Studio / Playwright",
+    colorClass: "platform-youtube",
+  },
+  {
+    value: "FACEBOOK",
+    label: "Facebook",
+    hint: "Reel hoặc video post",
+    colorClass: "platform-facebook",
+  },
+];
 
 export function UploadForm() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"info" | "success" | "error">("info");
+  const [loading, setLoading] = useState(false);
   const [platforms, setPlatforms] = useState<string[]>(["TIKTOK"]);
   const [tiktokPublishMode, setTiktokPublishMode] = useState<"DRAFT" | "PUBLIC">("DRAFT");
   const [tiktokUseSound, setTiktokUseSound] = useState(true);
@@ -55,8 +79,9 @@ export function UploadForm() {
       return;
     }
 
+    setLoading(true);
     setMessageType("info");
-    setMessage("Đang upload file và tạo lịch...");
+    setMessage("Đang upload video và tạo lịch...");
 
     const form = new FormData(event.currentTarget);
     const hashtags = String(form.get("hashtagsText") ?? "")
@@ -84,59 +109,59 @@ export function UploadForm() {
       setTiktokPublishMode("DRAFT");
       setTiktokUseSound(true);
       setMessageType("success");
-      setMessage("Đã upload video và tạo lịch đăng.");
+      setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Upload thất bại");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <section className="card upload-card">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">TẠO LỊCH MỚI</p>
-          <h2>Upload video</h2>
-          <p className="section-description">
-            Một video có thể chọn nhiều nền tảng. Nếu có TikTok, TikTok luôn chạy trước.
-          </p>
-        </div>
+        <span className="eyebrow">TẠO LỊCH MỚI</span>
+        <h2>Upload Video</h2>
+        <p className="section-description">
+          Một video có thể chọn nhiều nền tảng. Nếu có TikTok, TikTok sẽ luôn tự động xử lý trước.
+        </p>
       </div>
 
       <form className="form-grid" onSubmit={submit}>
         <label className="field">
           <span>Tiêu đề</span>
-          <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê" />
+          <input name="title" required maxLength={200} placeholder="Ví dụ: Bé học chữ say mê..." />
         </label>
 
         <label className="field">
-          <span>Video MP4 hoặc MOV</span>
+          <span>File Video (MP4 / MOV)</span>
           <input name="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" required />
         </label>
 
         <label className="field field-full">
-          <span>Mô tả</span>
-          <textarea name="description" maxLength={4000} placeholder="Nội dung caption / description..." />
+          <span>Mô tả / Caption</span>
+          <textarea name="description" maxLength={4000} placeholder="Nội dung caption / description cho bài đăng..." />
         </label>
 
         <label className="field field-full">
           <span>Hashtags</span>
           <input
             name="hashtagsText"
-            placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh, boloc24h"
+            placeholder="beyeu, mebimsua, behoctienganh, nguoimoixaykenh"
           />
-          <small>Phân cách bằng dấu phẩy. Có hoặc không có dấu # đều được.</small>
+          <small>Phân cách bằng dấu phẩy. Có hoặc không có dấu # đều hợp lệ.</small>
         </label>
 
         <div className="field field-full">
-          <span>Nền tảng</span>
+          <span>Nền tảng xuất bản</span>
           <div className="platform-grid">
             {PLATFORM_OPTIONS.map(option => {
               const selected = platforms.includes(option.value);
               return (
                 <label
                   key={option.value}
-                  className={`platform-option ${selected ? "platform-option-selected" : ""}`}
+                  className={`platform-option ${selected ? `platform-option-selected ${option.colorClass}` : ""}`}
                 >
                   <input
                     type="checkbox"
@@ -145,10 +170,10 @@ export function UploadForm() {
                     checked={selected}
                     onChange={event => togglePlatform(option.value, event.currentTarget.checked)}
                   />
-                  <span>
+                  <div className="platform-option-content">
                     <strong>{option.label}</strong>
                     <small>{option.hint}</small>
-                  </span>
+                  </div>
                 </label>
               );
             })}
@@ -157,7 +182,7 @@ export function UploadForm() {
 
         {hasTikTok && (
           <fieldset className="platform-settings field-full">
-            <legend>TikTok</legend>
+            <legend>Cấu hình TikTok</legend>
             <div className="settings-grid">
               <label className="field">
                 <span>Chế độ đăng</span>
@@ -168,8 +193,8 @@ export function UploadForm() {
                     event.currentTarget.value as "DRAFT" | "PUBLIC",
                   )}
                 >
-                  <option value="DRAFT">Draft</option>
-                  <option value="PUBLIC">Public</option>
+                  <option value="DRAFT">Draft (Bản nháp)</option>
+                  <option value="PUBLIC">Public (Công khai ngay)</option>
                 </select>
               </label>
 
@@ -184,8 +209,8 @@ export function UploadForm() {
                     if (next && hasDownstream) setTiktokPublishMode("PUBLIC");
                   }}
                 >
-                  <option value="true">Có — tự chọn nhạc TikTok</option>
-                  <option value="false">Không — giữ video gốc</option>
+                  <option value="true">Có — tự chọn nhạc trên TikTok</option>
+                  <option value="false">Không — giữ nguyên video gốc</option>
                 </select>
               </label>
             </div>
@@ -194,19 +219,17 @@ export function UploadForm() {
               {hasDownstream ? (
                 tiktokUseSound ? (
                   <>
-                    <strong>Flow:</strong> TikTok Public → thêm nhạc → tải lại bản TikTok bằng
-                    Playwright → Facebook/YouTube dùng bản đã tải.
+                    💡 <strong>Pipeline tối ưu:</strong> TikTok Public → thêm nhạc xu hướng → tải lại bản hoàn chỉnh → Facebook / YouTube tự động lấy video đã tải đăng tiếp.
                   </>
                 ) : (
                   <>
-                    <strong>Flow:</strong> TikTok chạy trước → không thêm nhạc, không download
-                    TikTok → Facebook/YouTube dùng video gốc.
+                    ℹ️ <strong>Pipeline trực tiếp:</strong> TikTok chạy trước → không thêm nhạc TikTok → Facebook / YouTube lấy thẳng video gốc ban đầu.
                   </>
                 )
               ) : (
                 <>
-                  <strong>TikTok only:</strong>{" "}
-                  {tiktokUseSound ? "hệ thống sẽ thử chọn nhạc TikTok." : "không thêm nhạc TikTok."}
+                  ℹ️ <strong>Chỉ TikTok:</strong>{" "}
+                  {tiktokUseSound ? "Hệ thống sẽ tự động thêm bài hát trending vào video." : "Đăng video mà không thêm nhạc nền TikTok."}
                 </>
               )}
             </div>
@@ -215,12 +238,12 @@ export function UploadForm() {
 
         {platforms.includes("YOUTUBE") && (
           <fieldset className="platform-settings">
-            <legend>YouTube</legend>
+            <legend>Cấu hình YouTube</legend>
             <label className="field">
               <span>Chế độ đăng</span>
               <select name="youtubePublishMode" defaultValue="PUBLIC">
-                <option value="PUBLIC">Public</option>
-                <option value="DRAFT">Draft / Private</option>
+                <option value="PUBLIC">Public (Công khai)</option>
+                <option value="DRAFT">Draft / Private (Riêng tư)</option>
               </select>
             </label>
           </fieldset>
@@ -228,13 +251,13 @@ export function UploadForm() {
 
         {platforms.includes("FACEBOOK") && (
           <fieldset className="platform-settings">
-            <legend>Facebook</legend>
+            <legend>Cấu hình Facebook</legend>
             <div className="settings-grid">
               <label className="field">
                 <span>Chế độ đăng</span>
                 <select name="facebookPublishMode" defaultValue="PUBLIC">
-                  <option value="PUBLIC">Public</option>
-                  <option value="DRAFT">Draft</option>
+                  <option value="PUBLIC">Public (Công khai)</option>
+                  <option value="DRAFT">Draft (Bản nháp)</option>
                 </select>
               </label>
 
@@ -242,7 +265,7 @@ export function UploadForm() {
                 <span>Loại bài đăng</span>
                 <select name="facebookContentType" defaultValue="REEL">
                   <option value="REEL">Reel</option>
-                  <option value="VIDEO_POST">Video bài viết bình thường</option>
+                  <option value="VIDEO_POST">Video Feed bình thường</option>
                 </select>
               </label>
             </div>
@@ -250,12 +273,14 @@ export function UploadForm() {
         )}
 
         <label className="field">
-          <span>Ngày + giờ chạy</span>
+          <span>Thời gian xuất bản</span>
           <input name="publishAtLocal" type="datetime-local" defaultValue={defaultPublishAt} required />
         </label>
 
         <div className="form-actions">
-          <button className="primary-button" type="submit">Upload và tạo lịch</button>
+          <button className="primary-button" type="submit" disabled={loading}>
+            {loading ? "Đang xử lý..." : "🚀 Upload và Tạo Lịch"}
+          </button>
         </div>
       </form>
 

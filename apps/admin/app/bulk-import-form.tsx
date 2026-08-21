@@ -6,11 +6,13 @@ const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 export function BulkImportForm() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"info" | "success" | "error">("info");
+  const [loading, setLoading] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
     setMessageType("info");
-    setMessage("Đang import...");
+    setMessage("Đang đọc và import danh sách video...");
 
     const form = new FormData(event.currentTarget);
     try {
@@ -21,72 +23,72 @@ export function BulkImportForm() {
       }
 
       setMessageType(body.failed ? "error" : "success");
-      setMessage(`Import xong: ${body.created}/${body.total} video, lỗi ${body.failed}.`);
+      setMessage(`✨ Import hoàn tất: ${body.created}/${body.total} video thành công, ${body.failed} lỗi.`);
       event.currentTarget.reset();
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Import thất bại");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <section className="card import-card">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">BULK IMPORT</p>
-          <h2>Import TXT / CSV</h2>
-          <p className="section-description">
-            Hỗ trợ format cũ 6 cột và format mở rộng 11 cột.
-          </p>
-        </div>
+        <span className="eyebrow">HÀNG LOẠT</span>
+        <h2>Bulk Import TXT / CSV</h2>
+        <p className="section-description">
+          Tải lên danh sách hàng chục video cùng lúc với định dạng bảng chuẩn 6 hoặc 11 cột.
+        </p>
       </div>
 
       <form className="import-form" onSubmit={submit}>
         <label className="field">
-          <span>File TXT hoặc CSV</span>
+          <span>Chọn file TXT hoặc CSV</span>
           <input name="file" type="file" accept="text/plain,text/csv,.txt,.csv" required />
         </label>
-        <button className="primary-button" type="submit">Import và tạo lịch</button>
+        <button className="primary-button" type="submit" disabled={loading}>
+          {loading ? "Đang import..." : "📥 Import và Tạo Lịch Hàng Loạt"}
+        </button>
       </form>
 
       <details className="format-guide" open>
-        <summary>Cấu trúc file import</summary>
+        <summary>📑 Hướng dẫn cấu trúc file Import</summary>
 
         <div className="format-block">
-          <strong>6 cột bắt buộc</strong>
+          <strong>6 cột cơ bản (Bắt buộc)</strong>
           <code>video_path · title · description · hashtags · platforms · publish_at</code>
         </div>
 
         <div className="format-block">
-          <strong>5 cột tùy chọn</strong>
+          <strong>5 cột mở rộng (Tùy chọn)</strong>
           <code>tiktok_mode · tiktok_use_sound · facebook_mode · facebook_type · youtube_mode</code>
         </div>
 
         <div className="format-notes">
           <span><b>platforms:</b> TIKTOK,YOUTUBE,FACEBOOK</span>
-          <span><b>tiktok_mode:</b> DRAFT hoặc PUBLIC</span>
-          <span><b>tiktok_use_sound:</b> true / false</span>
-          <span><b>facebook_mode:</b> DRAFT hoặc PUBLIC</span>
-          <span><b>facebook_type:</b> REEL hoặc VIDEO_POST</span>
-          <span><b>youtube_mode:</b> DRAFT hoặc PUBLIC</span>
-          <span><b>publish_at:</b> 2026-08-21 09:00 hoặc ISO-8601</span>
+          <span><b>tiktok_mode:</b> DRAFT | PUBLIC</span>
+          <span><b>tiktok_use_sound:</b> true | false</span>
+          <span><b>facebook_mode:</b> DRAFT | PUBLIC</span>
+          <span><b>facebook_type:</b> REEL | VIDEO_POST</span>
+          <span><b>youtube_mode:</b> DRAFT | PUBLIC</span>
+          <span><b>publish_at:</b> 2026-08-21 09:00</span>
         </div>
 
         <div className="format-block">
-          <strong>TXT — dùng TAB giữa các cột</strong>
-          <pre>{`video_path[TAB]title[TAB]description[TAB]hashtags[TAB]platforms[TAB]publish_at[TAB]tiktok_mode[TAB]tiktok_use_sound[TAB]facebook_mode[TAB]facebook_type[TAB]youtube_mode
-/Users/me/video.mov[TAB]Bé học chữ[TAB]Mô tả video[TAB]beyeu,mebimsua[TAB]TIKTOK,YOUTUBE,FACEBOOK[TAB]2026-08-21 09:00[TAB]PUBLIC[TAB]true[TAB]PUBLIC[TAB]REEL[TAB]PUBLIC`}</pre>
+          <strong>Mẫu TXT (Sử dụng phím TAB giữa các cột)</strong>
+          <pre>{`/Users/media/clip1.mov	Bé học chữ	Clip vui cho bé	beyeu,mamnon	TIKTOK,YOUTUBE,FACEBOOK	2026-08-21 09:00	PUBLIC	true	PUBLIC	REEL	PUBLIC`}</pre>
         </div>
 
         <div className="format-block">
-          <strong>CSV — nếu field có dấu phẩy thì đặt trong dấu ngoặc kép</strong>
+          <strong>Mẫu CSV (Nếu nội dung có dấu phẩy hãy bọc trong ngoặc kép)</strong>
           <pre>{`video_path,title,description,hashtags,platforms,publish_at,tiktok_mode,tiktok_use_sound,facebook_mode,facebook_type,youtube_mode
-"/Users/me/video.mov","Bé học chữ","Mô tả, có dấu phẩy","beyeu,mebimsua","TIKTOK,YOUTUBE,FACEBOOK","2026-08-21 09:00",PUBLIC,true,PUBLIC,REEL,PUBLIC`}</pre>
+"/Users/media/clip1.mov","Bé học chữ","Mô tả, có dấu phẩy","beyeu,mamnon","TIKTOK,YOUTUBE,FACEBOOK","2026-08-21 09:00",PUBLIC,true,PUBLIC,REEL,PUBLIC`}</pre>
         </div>
 
-        <div className="flow-note">
-          <strong>TikTok sound:</strong> true = thêm nhạc TikTok; nếu có Facebook/YouTube thì tải lại
-          bản TikTok và dùng bản đó. false = bỏ bước thêm nhạc/download; nền tảng sau dùng video gốc.
+        <div className="flow-note flow-note-accent" style={{ marginTop: "14px" }}>
+          💡 <strong>Quy tắc TikTok sound:</strong> <code>true</code> = tự động thêm nhạc TikTok và tải lại cho FB/YT; <code>false</code> = giữ nguyên file gốc.
         </div>
       </details>
 

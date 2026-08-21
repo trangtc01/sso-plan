@@ -6,13 +6,21 @@ export default function Home() {
   return (
     <>
       <header className="hero">
-        <div>
-          <p className="eyebrow">SOCIAL AUTOMATION</p>
-          <h1>Social Video Scheduler</h1>
-          <p>
-            Upload một video hoặc import hàng loạt, chọn nhiều nền tảng và theo dõi toàn bộ
-            pipeline TikTok → Facebook / YouTube.
-          </p>
+        <div className="hero-header-row">
+          <div>
+            <span className="eyebrow">✨ MULTI-PLATFORM AUTOMATION</span>
+            <h1>Social Video Scheduler</h1>
+            <p className="hero-description">
+              Tải lên một video hoặc import hàng loạt file TXT/CSV. Tự động đồng bộ pipeline
+              thêm nhạc từ TikTok sang Facebook Reels và YouTube Shorts theo lịch trình.
+            </p>
+          </div>
+          <div className="hero-stats-row">
+            <div className="hero-stat-chip">
+              <span className="dot"></span>
+              <span>Worker Queues Active</span>
+            </div>
+          </div>
         </div>
       </header>
 

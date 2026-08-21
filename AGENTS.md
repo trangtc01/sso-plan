@@ -80,6 +80,20 @@ Khi Agent lên plan và viết code/feature mới cho dự án để giao nhận
    - Chạy build/tests (`npm run build`, test suites) để đảm bảo không đứt gãy.
    - Review và update canonical docs trong `docs/context-pack/` theo Closed-Loop Workflow trước khi đánh giá task `DONE`.
 
+## Frontend & UI/UX Standards (Mandatory Design Intelligence)
+
+Mỗi AI Agent khi thực hiện bất kỳ thay đổi nào liên quan đến **Frontend / UI / UX** (bao gồm `apps/admin/app/*`, `styles.css`, component layouts, form controls, badges, animations):
+
+1. **Bắt buộc đọc Skill:** Phải tham chiếu và tuân thủ các quy chuẩn thiết kế trong [`.agents/skills/ui-ux-pro-max/SKILL.md`](file:///Users/truongtrang/HeiTech/personal_project/sso-plan/.agents/skills/ui-ux-pro-max/SKILL.md).
+2. **Claymorphism & Modern Soft SaaS System:**
+   - Sử dụng nhất quán bộ Design Tokens (`--clay-shadow-card`, `--clay-shadow-button`, `--clay-shadow-inset`, `--radius-xl`, `--radius-pill`).
+   - Đảm bảo hiệu ứng tactile 3D mềm mại (dual shadows: top highlight + ambient bottom shadow), viền chunky bo tròn, typography phân cấp rõ ràng (Plus Jakarta Sans / Inter).
+   - Tuyệt đối tránh giao diện khô cứng, sơ sài hoặc dùng màu mặc định thô ráp.
+3. **Pre-Delivery UI Checklist:**
+   - Độ tương phản văn bản đạt chuẩn WCAG AA 4.5:1 tối thiểu.
+   - Các tương tác bấm/chọn có phản hồi `active`/`hover` mượt mà và `cursor: pointer`.
+   - Đảm bảo hiển thị hoàn hảo và responsive trên Mobile (375px), Tablet (768px), Desktop (1280px+).
+
 ## Documentation Update Matrix
 
 When modifying specific system domains, you MUST review and update the corresponding canonical docs and inspect all listed source files:
@@ -89,7 +103,7 @@ When modifying specific system domains, you MUST review and update the correspon
 | **TikTok** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/PLATFORM_REGISTRY.md`<br>`docs/context-pack/KNOWN_ISSUES.md` | `src/cli.ts`<br>`src/run-draft.ts`<br>`src/tiktok-adapter.ts`<br>`src/profile-lock.ts`<br>`apps/worker/src/main.ts` |
 | **Facebook** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/PLATFORM_REGISTRY.md`<br>`docs/context-pack/KNOWN_ISSUES.md` | `src/facebook/*`<br>`src/social/facebook-publisher.ts`<br>`apps/worker/src/main.ts`<br>`apps/api/src/videos.service.ts` |
 | **YouTube** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/PLATFORM_REGISTRY.md`<br>`docs/context-pack/KNOWN_ISSUES.md` | `src/social/youtube-playwright-publisher.ts`<br>`src/social/config.ts`<br>`src/social/cli.ts`<br>`apps/worker/src/main.ts` |
-| **CMS / Admin** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/ARCHITECTURE_MAP.md`<br>`docs/context-pack/DIRECTORY_MAP.md` | `apps/admin/app/*` |
+| **CMS / Admin / UI** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/ARCHITECTURE_MAP.md`<br>`docs/context-pack/DIRECTORY_MAP.md`<br>`.agents/skills/ui-ux-pro-max/SKILL.md` | `apps/admin/app/*`<br>`.agents/skills/ui-ux-pro-max/*` |
 | **API** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/ARCHITECTURE_MAP.md`<br>`docs/context-pack/KNOWN_ISSUES.md` | `apps/api/src/videos.controller.ts`<br>`apps/api/src/videos.dto.ts`<br>`apps/api/src/videos.service.ts`<br>`apps/api/src/bulk-import.ts` |
 | **Scheduler / BullMQ / Worker** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/ARCHITECTURE_MAP.md`<br>`docs/context-pack/KNOWN_ISSUES.md`<br>`docs/context-pack/CURRENT_PRIORITIES.md` | `apps/worker/src/main.ts`<br>`apps/api/src/videos.service.ts`<br>`src/publish-queues.ts` |
 | **Database / Prisma** | `docs/context-pack/CURRENT_STATE.md`<br>`docs/context-pack/ARCHITECTURE_MAP.md` | `prisma/schema.prisma`<br>`prisma/migrations/*` |

@@ -5,11 +5,12 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 ## Implemented in current source
 
 ### CMS
-- single video upload
+- Modern Claymorphism & Soft SaaS tactile interface with dual-shadow cards, custom brand platform options, and glowing status badges
+- single video upload with drag-and-drop styled input
 - title
 - description
 - hashtags
-- multi-select Facebook / YouTube / TikTok
+- multi-select Facebook / YouTube / TikTok with branded option cards
 - per-platform scheduling options:
   - Facebook: Publish mode (`PUBLIC` / `DRAFT`), Content type (`REEL` / `VIDEO_POST`)
   - YouTube: Publish mode (`PUBLIC` / `DRAFT` mapping to private)
@@ -17,7 +18,8 @@ Baseline reviewed: `00685d431e50184754dcf92efb5f6d34d47af16f`.
 - validation: When TikTok is selected with sound=true together with Facebook/YouTube, TikTok publish mode must be `PUBLIC`. If sound=false, original video is used downstream without requiring TikTok Public mode.
 - datetime-local publish time
 - bulk TXT (tab-separated) and CSV import supporting extended columns (`tiktok_mode`, `tiktok_use_sound`, `facebook_mode`, `facebook_type`, `youtube_mode`)
-- video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`)
+- video/job list & rerun controls with retry safety (`PublishJob.useTikTokSource`) and live status pulse indicators
+
 
 ### API / scheduling
 - creates `Video` with `tiktokPublishedUrl` and `tiktokDownloadedPath` fields
