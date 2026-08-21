@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import { ensureMp4Format } from "../ffmpeg.js";
 
 export interface ValidatedFacebookVideoFile {
   path: string;
@@ -12,24 +13,20 @@ export interface ValidatedFacebookVideoFile {
 export async function validateFacebookVideoFile(inputPath: string): Promise<ValidatedFacebookVideoFile> {
   if (!inputPath?.trim()) throw new Error("--file is required");
 
-  const resolved = path.resolve(inputPath);
+  let resolved = path.resolve(inputPath);
   const info = await stat(resolved).catch(() => null);
   if (!info) throw new Error(`Video file does not exist: ${resolved}`);
   if (!info.isFile()) throw new Error(`Video path is not a regular file: ${resolved}`);
   if (info.size <= 0) throw new Error(`Video file is empty: ${resolved}`);
 
-  const ext = path.extname(resolved).toLowerCase();
-  const mimeType = ext === ".mov"
-    ? "video/quicktime"
-    : ext === ".mp4"
-      ? "video/mp4"
-      : "application/octet-stream";
+  resolved = await ensureMp4Format(resolved);
+  const finalInfo = await stat(resolved);
 
   return {
     path: resolved,
-    size: info.size,
+    size: finalInfo.size,
     filename: path.basename(resolved),
     defaultTitle: path.basename(resolved, path.extname(resolved)),
-    mimeType,
+    mimeType: "video/mp4",
   };
 }

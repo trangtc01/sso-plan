@@ -79,4 +79,9 @@ export class VideosController {
   rerunPublish(@Param("jobId") jobId: string) {
     return this.videos.rerunPublish(jobId);
   }
+
+  @Post(":id/preview-playwright")
+  previewPlaywright(@Param("id") id: string, @Query("platform") platform?: string) {
+    return this.videos.previewPlaywright(id, platform);
+  }
 }

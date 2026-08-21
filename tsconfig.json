@@ -8,7 +8,13 @@
     "skipLibCheck": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "jsx": "react-jsx",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "apps/**/*.ts",
+    "apps/**/*.tsx"
+  ]
 }

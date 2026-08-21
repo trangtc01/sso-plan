@@ -8,3 +8,6 @@ dist/
 .social-automation/
 playwright-report/
 test-results/
+.DS_Store
+*.tsbuildinfo
+

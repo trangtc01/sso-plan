@@ -42,7 +42,8 @@ There are two implementations/entry points:
 
 2. Scheduled publisher: `src/social/facebook-publisher.ts`
    - used by Facebook BullMQ worker
-   - supports `publishMode` (`PUBLIC` / `DRAFT`) and `facebookContentType` (`REEL` via `/{page-id}/video_reels` or `VIDEO_POST` via `/{page-id}/videos`)
+   - supports `publishMode` (`PUBLIC` / `DRAFT`) and `facebookContentType` (`REEL` via `/{page-id}/video_reels` or `VIDEO_POST` via `graph-video.facebook.com/{page-id}/videos`)
+   - `VIDEO_POST` uploads pass explicit filename with valid extension (`.mp4` / `.mov`) and MIME type (`video/mp4` / `video/quicktime`) to prevent Meta API error 352 (subcode 1363024)
 
 Observed runtime behavior from manual testing:
 - Reel upload and `/videos` upload returned distinct object IDs.

@@ -79,7 +79,7 @@ const tiktokWorker = new Worker<{ jobId: string }>(PUBLISH_QUEUES.tiktok, async 
   const downstreamJobs = await prisma.publishJob.findMany({
     where: {
       videoId: job.videoId,
-      status: PublishStatus.WAITING_SOURCE,
+      status: { in: [PublishStatus.WAITING_SOURCE, PublishStatus.WAITING_TIKTOK_SOURCE] },
       platform: { in: [Platform.FACEBOOK, Platform.YOUTUBE] },
     },
   });
@@ -221,6 +221,32 @@ tiktokWorker.on("failed", async (queueJob, error) => {
   await updateTikTokStatus(job.id, job.videoId, undefined, VideoStatus.FAILED, error.message);
 });
 
+async function recoverScheduledPublishJobs() {
+  try {
+    const scheduledJobs = await prisma.publishJob.findMany({
+      where: { status: { in: [PublishStatus.SCHEDULED, PublishStatus.READY_TO_RUN] } },
+    });
+    for (const job of scheduledJobs) {
+      const queue = job.platform === Platform.FACEBOOK ? facebookQueue : youtubeQueue;
+      const queueJob = await queue.getJob(job.id);
+      if (!queueJob) {
+        const delay = Math.max(0, (job.publishTime?.getTime() ?? 0) - Date.now());
+        await queue.add("publish", { publishJobId: job.id }, {
+          jobId: job.id,
+          delay,
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        });
+        console.log(`[Worker Recovery] Enqueued scheduled job ${job.id} for ${job.platform}`);
+      }
+    }
+  } catch (error) {
+    console.error("[Worker Recovery] Error recovering scheduled jobs:", error);
+  }
+}
+
+recoverScheduledPublishJobs();
+
 process.on("SIGINT", async () => {
   await Promise.all([
     tiktokWorker.close(),
@@ -259,7 +285,7 @@ async function releaseDownstream(
     const updated = await prisma.publishJob.update({
       where: { id: downstream.id },
       data: {
-        status: PublishStatus.SCHEDULED,
+        status: PublishStatus.READY_TO_RUN,
         errorMessage: null,
         finishedAt: null,
       },
@@ -283,7 +309,7 @@ async function failWaitingDownstream(videoId: string, errorMessage: string) {
   await prisma.publishJob.updateMany({
     where: {
       videoId,
-      status: PublishStatus.WAITING_SOURCE,
+      status: { in: [PublishStatus.WAITING_SOURCE, PublishStatus.WAITING_TIKTOK_SOURCE] },
       platform: { in: [Platform.FACEBOOK, Platform.YOUTUBE] },
     },
     data: {

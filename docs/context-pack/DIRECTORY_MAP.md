@@ -11,6 +11,7 @@
 │   │       ├── upload-form.tsx
 │   │       ├── bulk-import-form.tsx
 │   │       ├── video-list.tsx
+│   │       ├── types.ts
 │   │       └── page.tsx
 │   ├── api/                NestJS API
 │   │   └── src/
@@ -18,6 +19,8 @@
 │   │       ├── videos.dto.ts
 │   │       ├── videos.service.ts
 │   │       ├── bulk-import.ts
+│   │       ├── constants.ts
+│   │       ├── types.ts
 │   │       └── ...
 │   └── worker/
 │       └── src/main.ts     TikTok/Facebook/YouTube BullMQ workers
@@ -32,6 +35,7 @@
 │   ├── tiktok-adapter.ts
 │   ├── profile-lock.ts
 │   ├── publish-queues.ts
+│   ├── ffmpeg.ts           FFmpeg MP4 transcoding utility
 │   ├── facebook/           direct Facebook upload/status CLI implementation
 │   └── social/
 │       ├── facebook-publisher.ts

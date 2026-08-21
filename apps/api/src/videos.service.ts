@@ -12,30 +12,14 @@ import { PrismaService } from "./prisma.service.js";
 import { normalizeHashtags } from "./hashtags.js";
 import { assertTransition } from "./job-state.js";
 import { BulkImportParseError, parseBulkImportText, stageImportedVideo } from "./bulk-import.js";
-import { PUBLISH_QUEUES } from "../../../src/publish-queues.js";
-
 import { parseBoolean } from "./parse-boolean.js";
+import { QUEUES, RERUNNABLE_VIDEO_STATUSES, STORAGE_DIR } from "./constants.js";
+import type { CreateVideoInput } from "./types.js";
 
 const connection = { url: process.env.REDIS_URL ?? "redis://localhost:6379" };
-const tiktokQueue = new Queue(PUBLISH_QUEUES.tiktok, { connection });
-const facebookQueue = new Queue(PUBLISH_QUEUES.facebook, { connection });
-const youtubeQueue = new Queue(PUBLISH_QUEUES.youtube, { connection });
-const rerunnable = new Set<VideoStatus>([VideoStatus.FAILED, VideoStatus.LOGIN_REQUIRED]);
-const storageDir = path.resolve(process.env.VIDEO_STORAGE_DIR ?? ".tiktok-automation/uploads");
-
-interface CreateInput {
-  title: string;
-  description: string;
-  hashtags: string[] | string;
-  sourcePath: string;
-  platforms?: Platform[];
-  publishAt?: string;
-  facebookPublishMode?: PublishMode;
-  facebookContentType?: FacebookContentType;
-  youtubePublishMode?: PublishMode;
-  tiktokPublishMode?: PublishMode;
-  tiktokUseSound?: boolean | string;
-}
+const tiktokQueue = new Queue(QUEUES.tiktok, { connection });
+const facebookQueue = new Queue(QUEUES.facebook, { connection });
+const youtubeQueue = new Queue(QUEUES.youtube, { connection });
 
 @Injectable()
 export class VideosService {
@@ -73,7 +57,7 @@ export class VideosService {
     return video;
   }
 
-  async create(input: CreateInput) {
+  async create(input: CreateVideoInput) {
     const platforms = normalizePlatforms(input.platforms);
     const publishTime = normalizePublishTime(input.publishAt);
     const hasTikTok = platforms.includes(Platform.TIKTOK);
@@ -136,7 +120,7 @@ export class VideosService {
               : null,
             useTikTokSource: hasTikTok && tiktokUseSound,
             publishTime,
-            status: (hasTikTok && tiktokUseSound) ? PublishStatus.WAITING_SOURCE : PublishStatus.SCHEDULED,
+            status: (hasTikTok && tiktokUseSound) ? PublishStatus.WAITING_TIKTOK_SOURCE : PublishStatus.SCHEDULED,
           },
         }));
       }
@@ -154,8 +138,8 @@ export class VideosService {
       });
     }
 
-    if (!result.tiktokJob) {
-      for (const job of result.publishJobs) {
+    for (const job of result.publishJobs) {
+      if (job.status === PublishStatus.SCHEDULED || job.status === PublishStatus.READY_TO_RUN) {
         await publishQueue(job.platform).add("publish", { publishJobId: job.id }, {
           jobId: job.id,
           delay,
@@ -184,7 +168,7 @@ export class VideosService {
     const items: Array<Record<string, unknown>> = [];
     for (const row of rows) {
       try {
-        const stagedPath = await stageImportedVideo(row.sourcePath, storageDir);
+        const stagedPath = await stageImportedVideo(row.sourcePath, STORAGE_DIR);
         const created = await this.create({
           title: row.title,
           description: row.description,
@@ -218,7 +202,7 @@ export class VideosService {
     if (job.status === VideoStatus.AMBIGUOUS && !confirmNoDraft) {
       throw new BadRequestException("AMBIGUOUS requires confirmNoDraft=true after manual draft check");
     }
-    if (!rerunnable.has(job.status) && job.status !== VideoStatus.AMBIGUOUS) {
+    if (!RERUNNABLE_VIDEO_STATUSES.has(job.status) && job.status !== VideoStatus.AMBIGUOUS) {
       throw new BadRequestException(`job cannot be rerun from ${job.status}`);
     }
 
@@ -275,6 +259,49 @@ export class VideosService {
       removeOnFail: 100,
     });
     return updated;
+  }
+
+  async previewPlaywright(id: string, targetPlatform?: string) {
+    const video = await this.detail(id);
+    const mode = (targetPlatform || "file").toLowerCase();
+
+    let targetUrl = "";
+    let userDataDir = "";
+
+    if (mode === "tiktok") {
+      targetUrl = video.tiktokPublishedUrl || "https://www.tiktok.com/tiktokstudio/upload";
+      userDataDir = path.resolve(process.env.TIKTOK_PROFILE_DIR ?? "./.tiktok-automation/profile");
+    } else if (mode === "youtube") {
+      targetUrl = "https://studio.youtube.com";
+      userDataDir = path.resolve(process.env.YOUTUBE_PROFILE_DIR ?? "./.social-automation/youtube-profile");
+    } else {
+      const filePath = video.outputPath || video.sourcePath;
+      if (!filePath) throw new BadRequestException("No valid video file path found for preview");
+      targetUrl = `file://${path.resolve(filePath)}`;
+    }
+
+    try {
+      const { chromium } = await import("playwright");
+      let context;
+      if (userDataDir) {
+        context = await chromium.launchPersistentContext(userDataDir, {
+          headless: false,
+          viewport: null,
+          args: ["--start-maximized"],
+        });
+      } else {
+        const browser = await chromium.launch({ headless: false });
+        context = await browser.newContext();
+      }
+
+      const page = context.pages()[0] || await context.newPage();
+      await page.goto(targetUrl);
+      return { ok: true, platform: mode, targetUrl };
+    } catch (error) {
+      throw new BadRequestException(
+        `Could not launch Playwright browser for ${mode}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }
 

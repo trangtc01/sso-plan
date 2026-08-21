@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
+import path from "node:path";
 import type { FacebookConfig } from "./config.js";
 import type {
   FacebookContentType,
@@ -84,12 +85,16 @@ export class FacebookReelsPublisher {
   ): Promise<PublishResult> {
     const file = await validateVideoFile(input.filePath);
     const target = this.config.pageId ?? "me";
-    const url = new URL(`https://graph.facebook.com/${this.config.graphVersion}/${target}/videos`);
+    const url = new URL(`https://graph-video.facebook.com/${this.config.graphVersion}/${target}/videos`);
     url.searchParams.set("access_token", this.config.pageAccessToken);
 
     const bytes = await readFile(file.path);
+    const filename = path.basename(file.path);
+    const ext = path.extname(file.path).toLowerCase();
+    const mimeType = ext === ".mov" ? "video/quicktime" : "video/mp4";
+
     const form = new FormData();
-    form.set("source", new Blob([new Uint8Array(bytes)]), file.defaultTitle);
+    form.set("source", new Blob([new Uint8Array(bytes)], { type: mimeType }), filename);
     form.set("title", input.title);
     if (input.description?.trim()) form.set("description", input.description.trim());
     form.set("published", videoState === "PUBLISHED" ? "true" : "false");
