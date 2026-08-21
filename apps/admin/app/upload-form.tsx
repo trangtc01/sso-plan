@@ -121,7 +121,7 @@ export function UploadForm() {
   return (
     <div className="upload-form-wrapper">
       <form className="two-column-upload-form" onSubmit={submit}>
-        {/* Cột Bên Trái: Thông tin video & File */}
+        {/* Cột Bên Trái: Thông tin video, File & Nút Submit */}
         <div className="form-col-left">
           <label className="field">
             <span>Tiêu đề video</span>
@@ -151,6 +151,12 @@ export function UploadForm() {
             <span>Thời gian xuất bản</span>
             <input name="publishAtLocal" type="datetime-local" defaultValue={defaultPublishAt} required />
           </label>
+
+          <div className="form-actions" style={{ marginTop: "12px" }}>
+            <button className="primary-button" type="submit" disabled={loading}>
+              {loading ? "Đang xử lý..." : "🚀 Upload và Tạo Lịch"}
+            </button>
+          </div>
         </div>
 
         {/* Cột Bên Phải: Chọn nền tảng & Cấu hình xuất bản */}
@@ -273,12 +279,6 @@ export function UploadForm() {
               </div>
             </fieldset>
           )}
-
-          <div className="form-actions">
-            <button className="primary-button" type="submit" disabled={loading}>
-              {loading ? "Đang xử lý..." : "🚀 Upload và Tạo Lịch"}
-            </button>
-          </div>
         </div>
       </form>
 
