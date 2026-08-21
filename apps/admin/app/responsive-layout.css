@@ -3,8 +3,8 @@
  *
  * Design Goals:
  * - Single Full-Width Creation Card with Tab Switcher ([Upload Single] | [Bulk Import]).
- * - Left Column: Title, Caption, Hashtags, Video File, Publish Time.
- * - Right Column: Platform Selection (TikTok, YouTube, Facebook), Platform Configs, Action Button.
+ * - Left Column: Title, Caption, Hashtags, Video File, Publish Time, Submit Button.
+ * - Right Column: Platform Selection (TikTok, YouTube, Facebook), Platform Configs (Radio Groups).
  * - Compact vertical density so the entire upload form + queue table fit above the fold without scrolling.
  */
 
@@ -60,7 +60,7 @@ main {
 /* 2-Column Form Layout: Left (Metadata & File) | Right (Platforms & Configs) */
 .two-column-upload-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   gap: 28px;
   align-items: start;
 }
@@ -120,6 +120,50 @@ main {
 .platform-settings legend {
   font-size: 12px;
   padding: 3px 12px;
+}
+
+/* Radio Group Pill Styling */
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface-clay-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.radio-option:hover {
+  background: #ffffff;
+  border-color: var(--primary-500);
+}
+
+.radio-option input[type="radio"] {
+  accent-color: var(--primary-600);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.radio-option.selected {
+  background: #ffffff;
+  border-color: var(--primary-500);
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.18), inset 0 1px 2px rgba(255, 255, 255, 1);
+  color: var(--primary-700);
 }
 
 .flow-note {

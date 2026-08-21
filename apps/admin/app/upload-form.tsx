@@ -38,6 +38,10 @@ export function UploadForm() {
   const [platforms, setPlatforms] = useState<string[]>(["TIKTOK"]);
   const [tiktokPublishMode, setTiktokPublishMode] = useState<"DRAFT" | "PUBLIC">("DRAFT");
   const [tiktokUseSound, setTiktokUseSound] = useState(true);
+  const [youtubePublishMode, setYoutubePublishMode] = useState<"PUBLIC" | "DRAFT">("PUBLIC");
+  const [facebookPublishMode, setFacebookPublishMode] = useState<"PUBLIC" | "DRAFT">("PUBLIC");
+  const [facebookContentType, setFacebookContentType] = useState<"REEL" | "VIDEO_POST">("REEL");
+
   const defaultPublishAt = useMemo(
     () => toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000)),
     [],
@@ -97,7 +101,13 @@ export function UploadForm() {
     form.set("hashtags", JSON.stringify(hashtags));
     form.set("platforms", JSON.stringify(platforms));
     form.set("publishAt", publishAt.toISOString());
+    form.set("tiktokPublishMode", tiktokPublishMode);
     form.set("tiktokUseSound", String(tiktokUseSound));
+    if (platforms.includes("YOUTUBE")) form.set("youtubePublishMode", youtubePublishMode);
+    if (platforms.includes("FACEBOOK")) {
+      form.set("facebookPublishMode", facebookPublishMode);
+      form.set("facebookContentType", facebookContentType);
+    }
 
     try {
       const response = await fetch(`${api}/videos`, { method: "POST", body: form });
@@ -108,6 +118,9 @@ export function UploadForm() {
       setPlatforms(["TIKTOK"]);
       setTiktokPublishMode("DRAFT");
       setTiktokUseSound(true);
+      setYoutubePublishMode("PUBLIC");
+      setFacebookPublishMode("PUBLIC");
+      setFacebookContentType("REEL");
       setMessageType("success");
       setMessage("🎉 Đã upload video và lên lịch đăng thành công!");
     } catch (error) {
@@ -159,7 +172,7 @@ export function UploadForm() {
           </div>
         </div>
 
-        {/* Cột Bên Phải: Chọn nền tảng & Cấu hình xuất bản */}
+        {/* Cột Bên Phải: Chọn nền tảng & Cấu hình xuất bản (Radio buttons) */}
         <div className="form-col-right">
           <div className="field">
             <span>Nền tảng xuất bản</span>
@@ -192,35 +205,60 @@ export function UploadForm() {
             <fieldset className="platform-settings">
               <legend>TikTok Config</legend>
               <div className="settings-grid">
-                <label className="field">
+                <div className="field">
                   <span>Chế độ đăng</span>
-                  <select
-                    name="tiktokPublishMode"
-                    value={tiktokPublishMode}
-                    onChange={event => setTiktokPublishMode(
-                      event.currentTarget.value as "DRAFT" | "PUBLIC",
-                    )}
-                  >
-                    <option value="DRAFT">Draft (Bản nháp)</option>
-                    <option value="PUBLIC">Public (Công khai ngay)</option>
-                  </select>
-                </label>
+                  <div className="radio-group">
+                    <label className={`radio-option ${tiktokPublishMode === "DRAFT" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="tiktokPublishMode"
+                        value="DRAFT"
+                        checked={tiktokPublishMode === "DRAFT"}
+                        onChange={() => setTiktokPublishMode("DRAFT")}
+                      />
+                      <span>Draft (Bản nháp)</span>
+                    </label>
+                    <label className={`radio-option ${tiktokPublishMode === "PUBLIC" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="tiktokPublishMode"
+                        value="PUBLIC"
+                        checked={tiktokPublishMode === "PUBLIC"}
+                        onChange={() => setTiktokPublishMode("PUBLIC")}
+                      />
+                      <span>Public (Công khai)</span>
+                    </label>
+                  </div>
+                </div>
 
-                <label className="field">
+                <div className="field">
                   <span>Lấy nhạc từ TikTok</span>
-                  <select
-                    name="tiktokUseSound"
-                    value={String(tiktokUseSound)}
-                    onChange={event => {
-                      const next = event.currentTarget.value === "true";
-                      setTiktokUseSound(next);
-                      if (next && hasDownstream) setTiktokPublishMode("PUBLIC");
-                    }}
-                  >
-                    <option value="true">Có — tự chọn nhạc trên TikTok</option>
-                    <option value="false">Không — giữ nguyên video gốc</option>
-                  </select>
-                </label>
+                  <div className="radio-group">
+                    <label className={`radio-option ${tiktokUseSound ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="tiktokUseSound"
+                        value="true"
+                        checked={tiktokUseSound}
+                        onChange={() => {
+                          setTiktokUseSound(true);
+                          if (hasDownstream) setTiktokPublishMode("PUBLIC");
+                        }}
+                      />
+                      <span>Có — tự chọn nhạc</span>
+                    </label>
+                    <label className={`radio-option ${!tiktokUseSound ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="tiktokUseSound"
+                        value="false"
+                        checked={!tiktokUseSound}
+                        onChange={() => setTiktokUseSound(false)}
+                      />
+                      <span>Không — giữ video gốc</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className={`flow-note ${tiktokUseSound ? "flow-note-accent" : ""}`}>
@@ -247,13 +285,31 @@ export function UploadForm() {
           {platforms.includes("YOUTUBE") && (
             <fieldset className="platform-settings">
               <legend>YouTube Config</legend>
-              <label className="field">
+              <div className="field">
                 <span>Chế độ đăng</span>
-                <select name="youtubePublishMode" defaultValue="PUBLIC">
-                  <option value="PUBLIC">Public (Công khai)</option>
-                  <option value="DRAFT">Draft / Private (Riêng tư)</option>
-                </select>
-              </label>
+                <div className="radio-group">
+                  <label className={`radio-option ${youtubePublishMode === "PUBLIC" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="youtubePublishMode"
+                      value="PUBLIC"
+                      checked={youtubePublishMode === "PUBLIC"}
+                      onChange={() => setYoutubePublishMode("PUBLIC")}
+                    />
+                    <span>Public (Công khai)</span>
+                  </label>
+                  <label className={`radio-option ${youtubePublishMode === "DRAFT" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="youtubePublishMode"
+                      value="DRAFT"
+                      checked={youtubePublishMode === "DRAFT"}
+                      onChange={() => setYoutubePublishMode("DRAFT")}
+                    />
+                    <span>Draft / Private (Riêng tư)</span>
+                  </label>
+                </div>
+              </div>
             </fieldset>
           )}
 
@@ -261,21 +317,57 @@ export function UploadForm() {
             <fieldset className="platform-settings">
               <legend>Facebook Config</legend>
               <div className="settings-grid">
-                <label className="field">
+                <div className="field">
                   <span>Chế độ đăng</span>
-                  <select name="facebookPublishMode" defaultValue="PUBLIC">
-                    <option value="PUBLIC">Public (Công khai)</option>
-                    <option value="DRAFT">Draft (Bản nháp)</option>
-                  </select>
-                </label>
+                  <div className="radio-group">
+                    <label className={`radio-option ${facebookPublishMode === "PUBLIC" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookPublishMode"
+                        value="PUBLIC"
+                        checked={facebookPublishMode === "PUBLIC"}
+                        onChange={() => setFacebookPublishMode("PUBLIC")}
+                      />
+                      <span>Public (Công khai)</span>
+                    </label>
+                    <label className={`radio-option ${facebookPublishMode === "DRAFT" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookPublishMode"
+                        value="DRAFT"
+                        checked={facebookPublishMode === "DRAFT"}
+                        onChange={() => setFacebookPublishMode("DRAFT")}
+                      />
+                      <span>Draft (Bản nháp)</span>
+                    </label>
+                  </div>
+                </div>
 
-                <label className="field">
+                <div className="field">
                   <span>Loại bài đăng</span>
-                  <select name="facebookContentType" defaultValue="REEL">
-                    <option value="REEL">Reel</option>
-                    <option value="VIDEO_POST">Video Feed</option>
-                  </select>
-                </label>
+                  <div className="radio-group">
+                    <label className={`radio-option ${facebookContentType === "REEL" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookContentType"
+                        value="REEL"
+                        checked={facebookContentType === "REEL"}
+                        onChange={() => setFacebookContentType("REEL")}
+                      />
+                      <span>Reel</span>
+                    </label>
+                    <label className={`radio-option ${facebookContentType === "VIDEO_POST" ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="facebookContentType"
+                        value="VIDEO_POST"
+                        checked={facebookContentType === "VIDEO_POST"}
+                        onChange={() => setFacebookContentType("VIDEO_POST")}
+                      />
+                      <span>Video Feed</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </fieldset>
           )}
